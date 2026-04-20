@@ -1,0 +1,15 @@
+{
+  "dataset": "orders_bad_categories.csv",
+  "expected_findings": [
+    {
+      "type": "unexpected_values",
+      "column": "status",
+      "severity": "medium",
+      "unexpected_values": [
+        "pendng",
+        "shiped",
+        "cncelled"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+"""Generate small synthetic sample datasets for the Data Quality Triage Agent.
+
+Why this exists:
+- gives us safe public demo data
+- makes development easier
+- makes later testing repeatable
+
+This script creates:
+- 1 clean CSV
+- 3 broken CSVs
+- expected-results JSON files for the broken datasets
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+from copy import deepcopy
+from datetime import date, timedelta
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+CLEAN_DIR = ROOT / "sample_data" / "clean"
+BROKEN_DIR = ROOT / "sample_data" / "broken"
+EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
+
+FIELDNAMES = ["order_id", "customer_id", "order_date", "status", "region", "amount"]
+
+
+def build_clean_rows() -> list[dict[str, str]]:
+    """Create a small clean orders dataset."""
+    statuses = ["pending", "shipped", "delivered", "cancelled"]
+    regions = ["North", "South", "East", "West"]
+
+    start_date = date(2025, 1, 1)
+    rows: list[dict[str, str]] = []
+
+    for i in range(1, 31):
+        row = {
+            "order_id": f"ORD-{i:04d}",
+            "customer_id": f"CUST-{1000 + i}",
+            "order_date": (start_date + timedelta(days=i - 1)).isoformat(),
+            "status": statuses[(i - 1) % len(statuses)],
+            "region": regions[(i - 1) % len(regions)],
+            "amount": f"{49.5 + (i * 3.25):.2f}",
+        }
+        rows.append(row)
+
+    return rows
+
+
+def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
+    """Write rows to a CSV file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_json(path: Path, payload: dict) -> None:
+    """Write JSON payload to file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def build_nulls_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with missing customer IDs."""
+    rows = deepcopy(clean_rows)
+
+    for idx in [6, 13, 20]:  # 0-based positions -> rows 7, 14, 21
+        rows[idx]["customer_id"] = ""
+
+    return rows
+
+
+def build_duplicate_keys_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with duplicate order IDs."""
+    rows = deepcopy(clean_rows)
+
+    rows[10]["order_id"] = rows[4]["order_id"]
+    rows[11]["order_id"] = rows[4]["order_id"]
+
+    return rows
+
+
+def build_bad_categories_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with typo / unexpected status values."""
+    rows = deepcopy(clean_rows)
+
+    rows[7]["status"] = "pendng"
+    rows[15]["status"] = "shiped"
+    rows[23]["status"] = "cncelled"
+
+    return rows
+
+
+def main() -> None:
+    """Generate all sample data files."""
+    clean_rows = build_clean_rows()
+
+    # Clean dataset
+    write_csv(CLEAN_DIR / "orders_clean.csv", clean_rows)
+
+    # Broken datasets
+    nulls_rows = build_nulls_dataset(clean_rows)
+    duplicate_rows = build_duplicate_keys_dataset(clean_rows)
+    bad_category_rows = build_bad_categories_dataset(clean_rows)
+
+    write_csv(BROKEN_DIR / "orders_nulls.csv", nulls_rows)
+    write_csv(BROKEN_DIR / "orders_duplicate_keys.csv", duplicate_rows)
+    write_csv(BROKEN_DIR / "orders_bad_categories.csv", bad_category_rows)
+
+    # Expected findings
+    write_json(
+        EXPECTED_DIR / "orders_nulls_expected.json",
+        {
+            "dataset": "orders_nulls.csv",
+            "expected_findings": [
+                {
+                    "type": "missing_values",
+                    "column": "customer_id",
+                    "severity": "high",
+                    "min_count": 3,
+                }
+            ],
+        },
+    )
+
+    write_json(
+        EXPECTED_DIR / "orders_duplicate_keys_expected.json",
+        {
+            "dataset": "orders_duplicate_keys.csv",
+            "expected_findings": [
+                {
+                    "type": "duplicate_key",
+                    "column": "order_id",
+                    "severity": "critical",
+                }
+            ],
+        },
+    )
+
+    write_json(
+        EXPECTED_DIR / "orders_bad_categories_expected.json",
+        {
+            "dataset": "orders_bad_categories.csv",
+            "expected_findings": [
+                {
+                    "type": "unexpected_values",
+                    "column": "status",
+                    "severity": "medium",
+                    "unexpected_values": ["pendng", "shiped", "cncelled"],
+                }
+            ],
+        },
+    )
+
+    print("Sample data generated successfully.")
+    print(f"Clean dataset:   {CLEAN_DIR / 'orders_clean.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_nulls.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_duplicate_keys.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_bad_categories.csv'}")
+    print(f"Expected files:  {EXPECTED_DIR}")
+
+
+if __name__ == "__main__":
+    main()

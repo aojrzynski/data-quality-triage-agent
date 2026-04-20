@@ -1,0 +1,11 @@
+{
+  "dataset": "orders_nulls.csv",
+  "expected_findings": [
+    {
+      "type": "missing_values",
+      "column": "customer_id",
+      "severity": "high",
+      "min_count": 3
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "dataset": "orders_duplicate_keys.csv",
+  "expected_findings": [
+    {
+      "type": "duplicate_key",
+      "column": "order_id",
+      "severity": "critical"
+    }
+  ]
+}
