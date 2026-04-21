@@ -13,10 +13,15 @@ A local Python agent that reads a dataset, checks for data quality issues, and p
 Current version can:
 - load a CSV file
 - build a structured dataset profile
+- run first-pass data quality checks
+- score findings by severity
 - write JSON output
-- write a simple Markdown report
+- write a Markdown report
 
-Data quality checks will be added next.
+Implemented checks:
+- missing values
+- duplicate keys
+- unexpected categorical values
 
 ## Planned checks
 - Missing values

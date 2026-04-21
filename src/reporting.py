@@ -1,8 +1,4 @@
-"""Report generation logic.
-
-For now, this module creates a very simple Markdown summary.
-Later, it will include findings and recommendations.
-"""
+"""Report generation logic."""
 
 from __future__ import annotations
 
@@ -10,19 +6,57 @@ from src.models import RunResult
 
 
 def build_markdown_report(run_result: RunResult) -> str:
-    """Create a simple Markdown report for one agent run."""
+    """Create a Markdown report for one agent run."""
     profile = run_result.profile
 
     lines = [
         "# Data Quality Triage Report",
         "",
-        f"## Dataset",
+        "## Dataset",
         f"- Name: `{run_result.dataset_name}`",
         f"- Rows: {profile.row_count}",
         f"- Columns: {profile.column_count}",
         "",
-        "## Columns",
+        "## Findings Summary",
+        f"- Total findings: {len(run_result.findings)}",
+        "",
     ]
+
+    if run_result.findings:
+        lines.append("## Findings")
+        lines.append("")
+
+        for index, finding in enumerate(run_result.findings, start=1):
+            lines.extend(
+                [
+                    f"### {index}. {finding.finding_type}",
+                    f"- Column: `{finding.column}`" if finding.column else "- Column: _None_",
+                    f"- Severity: `{finding.severity}`",
+                    f"- Message: {finding.message}",
+                ]
+            )
+
+            if finding.evidence:
+                lines.append("- Evidence:")
+                for key, value in finding.evidence.items():
+                    lines.append(f"  - `{key}`: `{value}`")
+
+            lines.append("")
+    else:
+        lines.extend(
+            [
+                "## Findings",
+                "_No findings detected._",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Columns",
+            "",
+        ]
+    )
 
     for column in profile.columns:
         dtype = profile.inferred_dtypes[column]
@@ -38,13 +72,5 @@ def build_markdown_report(run_result: RunResult) -> str:
                 "",
             ]
         )
-
-    lines.extend(
-        [
-            "## Findings",
-            "_No findings yet. Checks will be added in the next milestone._",
-            "",
-        ]
-    )
 
     return "\n".join(lines)
