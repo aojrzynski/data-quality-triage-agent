@@ -1,12 +1,17 @@
-"""Severity scoring logic.
-
-This module decides how serious a finding is.
-Detection and severity are kept separate on purpose.
-"""
+"""Severity scoring logic."""
 
 from __future__ import annotations
 
 from src.models import Finding
+
+
+SEVERITY_ORDER = {
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 3,
+    "info": 4,
+}
 
 
 def score_finding(finding: Finding) -> Finding:
@@ -44,5 +49,14 @@ def score_finding(finding: Finding) -> Finding:
 
 
 def score_findings(findings: list[Finding]) -> list[Finding]:
-    """Score a list of findings."""
-    return [score_finding(finding) for finding in findings]
+    """Score and sort a list of findings."""
+    scored = [score_finding(finding) for finding in findings]
+
+    return sorted(
+        scored,
+        key=lambda finding: (
+            SEVERITY_ORDER.get(finding.severity, 999),
+            finding.finding_type,
+            finding.column or "",
+        ),
+    )

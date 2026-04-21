@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections import Counter
+
 from src.models import RunResult
 
 
 def build_markdown_report(run_result: RunResult) -> str:
     """Create a Markdown report for one agent run."""
     profile = run_result.profile
+    severity_counts = Counter(finding.severity for finding in run_result.findings)
 
     lines = [
         "# Data Quality Triage Report",
@@ -19,8 +22,14 @@ def build_markdown_report(run_result: RunResult) -> str:
         "",
         "## Findings Summary",
         f"- Total findings: {len(run_result.findings)}",
-        "",
     ]
+
+    for severity in ["critical", "high", "medium", "low", "info"]:
+        count = severity_counts.get(severity, 0)
+        if count:
+            lines.append(f"- {severity.title()}: {count}")
+
+    lines.append("")
 
     if run_result.findings:
         lines.append("## Findings")

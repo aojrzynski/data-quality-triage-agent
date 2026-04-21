@@ -1,15 +1,4 @@
-"""Dataset input/output helpers.
-
-This module handles:
-- loading a CSV into a pandas DataFrame
-- saving structured JSON output
-- saving Markdown reports
-
-Important design idea:
-The rest of the agent should not care where the data came from.
-Later, we can extend this module to support XLSX, JSON, or Parquet
-without changing the rest of the pipeline much.
-"""
+"""Dataset input/output helpers."""
 
 from __future__ import annotations
 
@@ -21,14 +10,7 @@ import pandas as pd
 
 
 def load_csv(path: str | Path) -> pd.DataFrame:
-    """Load a CSV file into a pandas DataFrame.
-
-    Args:
-        path: Path to a CSV file.
-
-    Returns:
-        A pandas DataFrame containing the file contents.
-    """
+    """Load a CSV file into a pandas DataFrame."""
     csv_path = Path(path)
 
     if not csv_path.exists():
@@ -37,13 +19,19 @@ def load_csv(path: str | Path) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
-def save_json(path: str | Path, payload: dict[str, Any]) -> None:
-    """Save a dictionary to a JSON file.
+def load_json(path: str | Path) -> dict[str, Any]:
+    """Load a JSON file into a Python dictionary."""
+    json_path = Path(path)
 
-    Args:
-        path: Destination file path.
-        payload: Data to write as JSON.
-    """
+    if not json_path.exists():
+        raise FileNotFoundError(f"JSON file not found: {json_path}")
+
+    with json_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_json(path: str | Path, payload: dict[str, Any]) -> None:
+    """Save a dictionary to a JSON file."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -52,12 +40,7 @@ def save_json(path: str | Path, payload: dict[str, Any]) -> None:
 
 
 def save_markdown(path: str | Path, content: str) -> None:
-    """Save Markdown text to a file.
-
-    Args:
-        path: Destination file path.
-        content: Markdown text to write.
-    """
+    """Save Markdown text to a file."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

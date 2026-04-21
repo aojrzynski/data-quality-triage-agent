@@ -4,9 +4,11 @@ from src.checks import (
     check_unexpected_categorical_values,
     run_checks,
 )
-from src.io import load_csv
+from src.io import load_csv, load_json
+from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.scoring import score_findings
+from src.cli import compare_to_expected
 
 
 def test_can_load_clean_csv() -> None:
@@ -20,6 +22,12 @@ def test_can_load_clean_csv() -> None:
         "region",
         "amount",
     ]
+
+
+def test_can_load_expected_json_fixture() -> None:
+    payload = load_json("tests/fixtures/expected/orders_nulls_expected.json")
+    assert payload["dataset"] == "orders_nulls.csv"
+    assert len(payload["expected_findings"]) == 1
 
 
 def test_dataset_name_from_path() -> None:
@@ -90,3 +98,51 @@ def test_run_checks_on_clean_dataset_returns_no_findings() -> None:
     findings = run_checks(df)
 
     assert findings == []
+
+
+def test_compare_to_expected_passes_for_nulls_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_nulls.csv")
+    profile = build_dataset_profile(df, "orders_nulls.csv")
+    findings = score_findings(run_checks(df))
+    run_result = RunResult(
+        dataset_name="orders_nulls.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_nulls_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
+
+
+def test_compare_to_expected_passes_for_duplicate_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_duplicate_keys.csv")
+    profile = build_dataset_profile(df, "orders_duplicate_keys.csv")
+    findings = score_findings(run_checks(df))
+    run_result = RunResult(
+        dataset_name="orders_duplicate_keys.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_duplicate_keys_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
+
+
+def test_compare_to_expected_passes_for_bad_categories_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_bad_categories.csv")
+    profile = build_dataset_profile(df, "orders_bad_categories.csv")
+    findings = score_findings(run_checks(df))
+    run_result = RunResult(
+        dataset_name="orders_bad_categories.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_bad_categories_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
