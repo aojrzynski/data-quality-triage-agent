@@ -42,6 +42,8 @@ class AgentConfig:
 
     key_columns: list[str] = field(default_factory=list)
     categorical_rules: dict[str, list[str]] = field(default_factory=dict)
+    date_gap_columns: list[str] = field(default_factory=list)
+    numeric_outlier_columns: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -54,6 +56,8 @@ class AgentConfig:
                 str(column): list(values)
                 for column, values in payload.get("categorical_rules", {}).items()
             },
+            date_gap_columns=list(payload.get("date_gap_columns", [])),
+            numeric_outlier_columns=list(payload.get("numeric_outlier_columns", [])),
         )
 
 

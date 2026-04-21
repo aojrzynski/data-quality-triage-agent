@@ -1,0 +1,11 @@
+{
+  "dataset": "orders_outliers.csv",
+  "expected_findings": [
+    {
+      "type": "numeric_outliers",
+      "column": "amount",
+      "severity": "medium",
+      "min_outlier_count": 1
+    }
+  ]
+}

@@ -17,20 +17,9 @@ from src.scoring import score_findings
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Run the Data Quality Triage Agent.")
-    parser.add_argument(
-        "--input",
-        required=True,
-        help="Path to the input CSV file.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default="outputs",
-        help="Directory where output files will be written.",
-    )
-    parser.add_argument(
-        "--expected",
-        help="Optional path to an expected-results JSON fixture.",
-    )
+    parser.add_argument("--input", required=True, help="Path to the input CSV file.")
+    parser.add_argument("--output-dir", default="outputs", help="Directory for outputs.")
+    parser.add_argument("--expected", help="Optional expected-results JSON fixture.")
     parser.add_argument(
         "--config",
         default="config/default_config.json",
@@ -39,10 +28,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def compare_to_expected(
-    run_result: RunResult,
-    expected_payload: dict,
-) -> list[str]:
+def compare_to_expected(run_result: RunResult, expected_payload: dict) -> list[str]:
     """Compare actual findings to an expected-results fixture."""
     messages: list[str] = []
     expected_findings = expected_payload.get("expected_findings", [])
@@ -82,6 +68,22 @@ def compare_to_expected(
             if sorted(actual_values) != sorted(expected_values):
                 messages.append(
                     f"Unexpected values mismatch for {key}: expected {expected_values}, got {actual_values}"
+                )
+
+        expected_min_gap_count = expected.get("min_gap_count")
+        if expected_min_gap_count is not None:
+            actual_gap_count = int(actual.evidence.get("missing_dates_count", 0))
+            if actual_gap_count < expected_min_gap_count:
+                messages.append(
+                    f"Gap count too low for {key}: expected at least {expected_min_gap_count}, got {actual_gap_count}"
+                )
+
+        expected_min_outlier_count = expected.get("min_outlier_count")
+        if expected_min_outlier_count is not None:
+            actual_outlier_count = int(actual.evidence.get("outlier_count", 0))
+            if actual_outlier_count < expected_min_outlier_count:
+                messages.append(
+                    f"Outlier count too low for {key}: expected at least {expected_min_outlier_count}, got {actual_outlier_count}"
                 )
 
     return messages
@@ -127,10 +129,7 @@ def main() -> None:
     if scored_findings:
         print("\nDetected findings:")
         for finding in scored_findings:
-            print(
-                f"- [{finding.severity.upper()}] {finding.finding_type}"
-                f" ({finding.column})"
-            )
+            print(f"- [{finding.severity.upper()}] {finding.finding_type} ({finding.column})")
 
     if args.expected:
         expected_payload = load_json(args.expected)

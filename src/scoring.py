@@ -40,6 +40,16 @@ def score_finding(finding: Finding) -> Finding:
         finding.severity = "medium"
         return finding
 
+    if finding.finding_type == "date_gaps":
+        gap_count = int(evidence.get("missing_dates_count", 0))
+        finding.severity = "high" if gap_count > 3 else "medium"
+        return finding
+
+    if finding.finding_type == "numeric_outliers":
+        outlier_count = int(evidence.get("outlier_count", 0))
+        finding.severity = "high" if outlier_count > 2 else "medium"
+        return finding
+
     if finding.finding_type in {"missing_key_column", "missing_column"}:
         finding.severity = "high"
         return finding

@@ -1,0 +1,11 @@
+{
+  "dataset": "orders_date_gaps.csv",
+  "expected_findings": [
+    {
+      "type": "date_gaps",
+      "column": "order_date",
+      "severity": "medium",
+      "min_gap_count": 2
+    }
+  ]
+}

@@ -1,22 +1,11 @@
-"""Generate small synthetic sample datasets for the Data Quality Triage Agent.
-
-Why this exists:
-- gives us safe public demo data
-- makes development easier
-- makes later testing repeatable
-
-This script creates:
-- 1 clean CSV
-- 3 broken CSVs
-- expected-results JSON files for the broken datasets
-"""
+"""Generate small synthetic sample datasets for the Data Quality Triage Agent."""
 
 from __future__ import annotations
 
 import csv
 import json
 from copy import deepcopy
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
@@ -51,7 +40,6 @@ def build_clean_rows() -> list[dict[str, str]]:
 
 
 def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
-    """Write rows to a CSV file."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -61,7 +49,6 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def write_json(path: Path, payload: dict) -> None:
-    """Write JSON payload to file."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("w", encoding="utf-8") as f:
@@ -69,17 +56,15 @@ def write_json(path: Path, payload: dict) -> None:
 
 
 def build_nulls_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Create a dataset with missing customer IDs."""
     rows = deepcopy(clean_rows)
 
-    for idx in [6, 13, 20]:  # 0-based positions -> rows 7, 14, 21
+    for idx in [6, 13, 20]:
         rows[idx]["customer_id"] = ""
 
     return rows
 
 
 def build_duplicate_keys_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Create a dataset with duplicate order IDs."""
     rows = deepcopy(clean_rows)
 
     rows[10]["order_id"] = rows[4]["order_id"]
@@ -89,7 +74,6 @@ def build_duplicate_keys_dataset(clean_rows: list[dict[str, str]]) -> list[dict[
 
 
 def build_bad_categories_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Create a dataset with typo / unexpected status values."""
     rows = deepcopy(clean_rows)
 
     rows[7]["status"] = "pendng"
@@ -99,23 +83,41 @@ def build_bad_categories_dataset(clean_rows: list[dict[str, str]]) -> list[dict[
     return rows
 
 
+def build_date_gaps_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Shift later dates forward by 2 days, creating a gap in the sequence."""
+    rows = deepcopy(clean_rows)
+
+    for idx in range(10, len(rows)):
+        original = datetime.strptime(rows[idx]["order_date"], "%Y-%m-%d").date()
+        rows[idx]["order_date"] = (original + timedelta(days=2)).isoformat()
+
+    return rows
+
+
+def build_outliers_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with a clearly extreme amount value."""
+    rows = deepcopy(clean_rows)
+    rows[4]["amount"] = "9999.99"
+    return rows
+
+
 def main() -> None:
-    """Generate all sample data files."""
     clean_rows = build_clean_rows()
 
-    # Clean dataset
     write_csv(CLEAN_DIR / "orders_clean.csv", clean_rows)
 
-    # Broken datasets
     nulls_rows = build_nulls_dataset(clean_rows)
     duplicate_rows = build_duplicate_keys_dataset(clean_rows)
     bad_category_rows = build_bad_categories_dataset(clean_rows)
+    date_gaps_rows = build_date_gaps_dataset(clean_rows)
+    outliers_rows = build_outliers_dataset(clean_rows)
 
     write_csv(BROKEN_DIR / "orders_nulls.csv", nulls_rows)
     write_csv(BROKEN_DIR / "orders_duplicate_keys.csv", duplicate_rows)
     write_csv(BROKEN_DIR / "orders_bad_categories.csv", bad_category_rows)
+    write_csv(BROKEN_DIR / "orders_date_gaps.csv", date_gaps_rows)
+    write_csv(BROKEN_DIR / "orders_outliers.csv", outliers_rows)
 
-    # Expected findings
     write_json(
         EXPECTED_DIR / "orders_nulls_expected.json",
         {
@@ -125,10 +127,10 @@ def main() -> None:
                     "type": "missing_values",
                     "column": "customer_id",
                     "severity": "high",
-                    "min_count": 3,
+                    "min_count": 3
                 }
-            ],
-        },
+            ]
+        }
     )
 
     write_json(
@@ -139,10 +141,10 @@ def main() -> None:
                 {
                     "type": "duplicate_key",
                     "column": "order_id",
-                    "severity": "critical",
+                    "severity": "critical"
                 }
-            ],
-        },
+            ]
+        }
     )
 
     write_json(
@@ -154,10 +156,40 @@ def main() -> None:
                     "type": "unexpected_values",
                     "column": "status",
                     "severity": "medium",
-                    "unexpected_values": ["pendng", "shiped", "cncelled"],
+                    "unexpected_values": ["pendng", "shiped", "cncelled"]
                 }
-            ],
-        },
+            ]
+        }
+    )
+
+    write_json(
+        EXPECTED_DIR / "orders_date_gaps_expected.json",
+        {
+            "dataset": "orders_date_gaps.csv",
+            "expected_findings": [
+                {
+                    "type": "date_gaps",
+                    "column": "order_date",
+                    "severity": "medium",
+                    "min_gap_count": 2
+                }
+            ]
+        }
+    )
+
+    write_json(
+        EXPECTED_DIR / "orders_outliers_expected.json",
+        {
+            "dataset": "orders_outliers.csv",
+            "expected_findings": [
+                {
+                    "type": "numeric_outliers",
+                    "column": "amount",
+                    "severity": "medium",
+                    "min_outlier_count": 1
+                }
+            ]
+        }
     )
 
     print("Sample data generated successfully.")
@@ -165,6 +197,8 @@ def main() -> None:
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_nulls.csv'}")
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_duplicate_keys.csv'}")
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_bad_categories.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_date_gaps.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_outliers.csv'}")
     print(f"Expected files:  {EXPECTED_DIR}")
 
 

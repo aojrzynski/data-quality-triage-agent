@@ -2,5 +2,7 @@
   "key_columns": ["order_id"],
   "categorical_rules": {
     "status": ["pending", "shipped", "delivered", "cancelled"]
-  }
+  },
+  "date_gap_columns": ["order_date"],
+  "numeric_outlier_columns": ["amount"]
 }

@@ -76,7 +76,7 @@ def check_unexpected_categorical_values(
     column: str,
     allowed_values: set[str],
 ) -> list[Finding]:
-    """Find values in a categorical column that are not in the allowed set."""
+    """Find unexpected values in a categorical column."""
     if column not in df.columns:
         return [
             Finding(
@@ -108,6 +108,98 @@ def check_unexpected_categorical_values(
     ]
 
 
+def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
+    """Find missing dates inside the min-to-max date range."""
+    if column not in df.columns:
+        return [
+            Finding(
+                finding_type="missing_column",
+                column=column,
+                severity="info",
+                message=f"Date column '{column}' does not exist in the dataset.",
+                evidence={},
+            )
+        ]
+
+    parsed = pd.to_datetime(df[column], errors="coerce")
+
+    if parsed.dropna().empty:
+        return []
+
+    normalized = parsed.dropna().dt.normalize()
+    min_date = normalized.min()
+    max_date = normalized.max()
+
+    expected_dates = pd.date_range(start=min_date, end=max_date, freq="D")
+    present_dates = set(normalized.dt.date)
+    missing_dates = [ts.date().isoformat() for ts in expected_dates if ts.date() not in present_dates]
+
+    if not missing_dates:
+        return []
+
+    return [
+        Finding(
+            finding_type="date_gaps",
+            column=column,
+            severity="info",
+            message=f"Column '{column}' has missing dates in the sequence.",
+            evidence={
+                "missing_dates_count": len(missing_dates),
+                "missing_dates": missing_dates[:10],
+            },
+        )
+    ]
+
+
+def check_numeric_outliers(df: pd.DataFrame, column: str) -> list[Finding]:
+    """Find numeric outliers using the IQR method."""
+    if column not in df.columns:
+        return [
+            Finding(
+                finding_type="missing_column",
+                column=column,
+                severity="info",
+                message=f"Numeric column '{column}' does not exist in the dataset.",
+                evidence={},
+            )
+        ]
+
+    numeric = pd.to_numeric(df[column], errors="coerce").dropna()
+
+    if len(numeric) < 4:
+        return []
+
+    q1 = numeric.quantile(0.25)
+    q3 = numeric.quantile(0.75)
+    iqr = q3 - q1
+
+    if iqr == 0:
+        return []
+
+    lower_bound = q1 - (1.5 * iqr)
+    upper_bound = q3 + (1.5 * iqr)
+
+    outliers = numeric[(numeric < lower_bound) | (numeric > upper_bound)]
+
+    if outliers.empty:
+        return []
+
+    return [
+        Finding(
+            finding_type="numeric_outliers",
+            column=column,
+            severity="info",
+            message=f"Column '{column}' contains numeric outliers.",
+            evidence={
+                "outlier_count": int(outliers.count()),
+                "lower_bound": round(float(lower_bound), 2),
+                "upper_bound": round(float(upper_bound), 2),
+                "outlier_values": [round(float(v), 2) for v in outliers.tolist()[:10]],
+            },
+        )
+    ]
+
+
 def run_checks(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
     """Run checks using the supplied config."""
     findings: list[Finding] = []
@@ -125,5 +217,11 @@ def run_checks(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
                 allowed_values=set(allowed_values),
             )
         )
+
+    for column in config.date_gap_columns:
+        findings.extend(check_date_gaps(df, column=column))
+
+    for column in config.numeric_outlier_columns:
+        findings.extend(check_numeric_outliers(df, column=column))
 
     return findings

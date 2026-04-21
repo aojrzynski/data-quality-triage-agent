@@ -1,6 +1,8 @@
 from src.checks import (
+    check_date_gaps,
     check_duplicate_keys,
     check_missing_values,
+    check_numeric_outliers,
     check_unexpected_categorical_values,
     run_checks,
 )
@@ -40,6 +42,8 @@ def test_can_load_default_config() -> None:
         "delivered",
         "cancelled",
     ]
+    assert config.date_gap_columns == ["order_date"]
+    assert config.numeric_outlier_columns == ["amount"]
 
 
 def test_dataset_name_from_path() -> None:
@@ -105,6 +109,30 @@ def test_unexpected_values_check_finds_status_typos() -> None:
     ]
 
 
+def test_date_gaps_check_finds_missing_dates() -> None:
+    df = load_csv("sample_data/broken/orders_date_gaps.csv")
+    findings = check_date_gaps(df, column="order_date")
+    scored = score_findings(findings)
+
+    assert len(scored) == 1
+    assert scored[0].finding_type == "date_gaps"
+    assert scored[0].column == "order_date"
+    assert scored[0].severity == "medium"
+    assert scored[0].evidence["missing_dates_count"] == 2
+
+
+def test_numeric_outliers_check_finds_amount_issue() -> None:
+    df = load_csv("sample_data/broken/orders_outliers.csv")
+    findings = check_numeric_outliers(df, column="amount")
+    scored = score_findings(findings)
+
+    assert len(scored) == 1
+    assert scored[0].finding_type == "numeric_outliers"
+    assert scored[0].column == "amount"
+    assert scored[0].severity == "medium"
+    assert scored[0].evidence["outlier_count"] >= 1
+
+
 def test_run_checks_on_clean_dataset_returns_no_findings() -> None:
     df = load_csv("sample_data/clean/orders_clean.csv")
     config = load_agent_config()
@@ -159,6 +187,40 @@ def test_compare_to_expected_passes_for_bad_categories_fixture() -> None:
     )
 
     expected_payload = load_json("tests/fixtures/expected/orders_bad_categories_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
+
+
+def test_compare_to_expected_passes_for_date_gaps_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_date_gaps.csv")
+    profile = build_dataset_profile(df, "orders_date_gaps.csv")
+    config = load_agent_config()
+    findings = score_findings(run_checks(df, config=config))
+    run_result = RunResult(
+        dataset_name="orders_date_gaps.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_date_gaps_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
+
+
+def test_compare_to_expected_passes_for_outliers_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_outliers.csv")
+    profile = build_dataset_profile(df, "orders_outliers.csv")
+    config = load_agent_config()
+    findings = score_findings(run_checks(df, config=config))
+    run_result = RunResult(
+        dataset_name="orders_outliers.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_outliers_expected.json")
     comparison_messages = compare_to_expected(run_result, expected_payload)
 
     assert comparison_messages == []

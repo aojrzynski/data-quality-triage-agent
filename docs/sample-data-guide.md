@@ -15,24 +15,21 @@ A clean baseline orders dataset with no intentional issues.
 ### `sample_data/broken/orders_nulls.csv`
 Contains missing values in `customer_id`.
 
-Expected issue:
-- missing values in `customer_id`
-
 ### `sample_data/broken/orders_duplicate_keys.csv`
 Contains duplicate values in `order_id`.
-
-Expected issue:
-- duplicate key in `order_id`
 
 ### `sample_data/broken/orders_bad_categories.csv`
 Contains typo / unexpected values in `status`.
 
-Expected issue:
-- unexpected categorical values in `status`
+### `sample_data/broken/orders_date_gaps.csv`
+Contains gaps in the `order_date` sequence.
+
+### `sample_data/broken/orders_outliers.csv`
+Contains a clear numeric outlier in `amount`.
 
 ## Expected result files
 Expected findings are stored in:
 
 `tests/fixtures/expected/`
 
-These files will be used later for automated tests.
+These files are used for automated validation tests.
