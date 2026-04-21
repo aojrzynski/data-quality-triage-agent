@@ -27,6 +27,11 @@ Contains gaps in the `order_date` sequence.
 ### `sample_data/broken/orders_outliers.csv`
 Contains a clear numeric outlier in `amount`.
 
+### `sample_data/broken/orders_schema_surprises.csv`
+Contains a schema mismatch:
+- missing expected column: `region`
+- unexpected extra column: `sales_channel`
+
 ## Expected result files
 Expected findings are stored in:
 

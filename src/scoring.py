@@ -15,7 +15,6 @@ SEVERITY_ORDER = {
 
 
 def score_finding(finding: Finding) -> Finding:
-    """Assign a severity level to a finding."""
     evidence = finding.evidence
 
     if finding.finding_type == "duplicate_key":
@@ -50,6 +49,19 @@ def score_finding(finding: Finding) -> Finding:
         finding.severity = "high" if outlier_count > 2 else "medium"
         return finding
 
+    if finding.finding_type == "schema_surprises":
+        missing_columns = evidence.get("missing_columns", [])
+        unexpected_columns = evidence.get("unexpected_columns", [])
+
+        if missing_columns:
+            finding.severity = "high"
+        elif unexpected_columns:
+            finding.severity = "medium"
+        else:
+            finding.severity = "info"
+
+        return finding
+
     if finding.finding_type in {"missing_key_column", "missing_column"}:
         finding.severity = "high"
         return finding
@@ -59,7 +71,6 @@ def score_finding(finding: Finding) -> Finding:
 
 
 def score_findings(findings: list[Finding]) -> list[Finding]:
-    """Score and sort a list of findings."""
     scored = [score_finding(finding) for finding in findings]
 
     return sorted(

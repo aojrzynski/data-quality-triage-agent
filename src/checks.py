@@ -8,7 +8,6 @@ from src.models import AgentConfig, Finding
 
 
 def check_missing_values(df: pd.DataFrame) -> list[Finding]:
-    """Find columns with missing values."""
     findings: list[Finding] = []
 
     for column in df.columns:
@@ -32,7 +31,6 @@ def check_missing_values(df: pd.DataFrame) -> list[Finding]:
 
 
 def check_duplicate_keys(df: pd.DataFrame, key_column: str) -> list[Finding]:
-    """Find duplicate values in a key column."""
     if key_column not in df.columns:
         return [
             Finding(
@@ -76,7 +74,6 @@ def check_unexpected_categorical_values(
     column: str,
     allowed_values: set[str],
 ) -> list[Finding]:
-    """Find unexpected values in a categorical column."""
     if column not in df.columns:
         return [
             Finding(
@@ -109,7 +106,6 @@ def check_unexpected_categorical_values(
 
 
 def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
-    """Find missing dates inside the min-to-max date range."""
     if column not in df.columns:
         return [
             Finding(
@@ -152,7 +148,6 @@ def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
 
 
 def check_numeric_outliers(df: pd.DataFrame, column: str) -> list[Finding]:
-    """Find numeric outliers using the IQR method."""
     if column not in df.columns:
         return [
             Finding(
@@ -200,10 +195,38 @@ def check_numeric_outliers(df: pd.DataFrame, column: str) -> list[Finding]:
     ]
 
 
+def check_schema_surprises(df: pd.DataFrame, expected_columns: list[str]) -> list[Finding]:
+    """Compare actual columns against expected columns."""
+    if not expected_columns:
+        return []
+
+    actual_columns = list(df.columns)
+    missing_columns = [column for column in expected_columns if column not in actual_columns]
+    unexpected_columns = [column for column in actual_columns if column not in expected_columns]
+
+    if not missing_columns and not unexpected_columns:
+        return []
+
+    return [
+        Finding(
+            finding_type="schema_surprises",
+            column=None,
+            severity="info",
+            message="Dataset columns do not match the expected schema.",
+            evidence={
+                "missing_columns": missing_columns,
+                "unexpected_columns": unexpected_columns,
+                "expected_columns": expected_columns,
+                "actual_columns": actual_columns,
+            },
+        )
+    ]
+
+
 def run_checks(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
-    """Run checks using the supplied config."""
     findings: list[Finding] = []
 
+    findings.extend(check_schema_surprises(df, expected_columns=config.expected_columns))
     findings.extend(check_missing_values(df))
 
     for key_column in config.key_columns:

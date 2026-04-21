@@ -86,8 +86,23 @@ def compare_to_expected(run_result: RunResult, expected_payload: dict) -> list[s
                     f"Outlier count too low for {key}: expected at least {expected_min_outlier_count}, got {actual_outlier_count}"
                 )
 
-    return messages
+        expected_missing_columns = expected.get("missing_columns")
+        if expected_missing_columns is not None:
+            actual_missing_columns = actual.evidence.get("missing_columns", [])
+            if sorted(actual_missing_columns) != sorted(expected_missing_columns):
+                messages.append(
+                    f"Missing columns mismatch for {key}: expected {expected_missing_columns}, got {actual_missing_columns}"
+                )
 
+        expected_unexpected_columns = expected.get("unexpected_columns")
+        if expected_unexpected_columns is not None:
+            actual_unexpected_columns = actual.evidence.get("unexpected_columns", [])
+            if sorted(actual_unexpected_columns) != sorted(expected_unexpected_columns):
+                messages.append(
+                    f"Unexpected columns mismatch for {key}: expected {expected_unexpected_columns}, got {actual_unexpected_columns}"
+                )
+
+    return messages
 
 def main() -> None:
     """Run the current version of the agent."""

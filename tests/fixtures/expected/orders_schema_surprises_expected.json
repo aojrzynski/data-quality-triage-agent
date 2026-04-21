@@ -1,0 +1,16 @@
+{
+  "dataset": "orders_schema_surprises.csv",
+  "expected_findings": [
+    {
+      "type": "schema_surprises",
+      "column": null,
+      "severity": "high",
+      "missing_columns": [
+        "region"
+      ],
+      "unexpected_columns": [
+        "sales_channel"
+      ]
+    }
+  ]
+}

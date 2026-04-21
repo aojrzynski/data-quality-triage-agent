@@ -4,5 +4,13 @@
     "status": ["pending", "shipped", "delivered", "cancelled"]
   },
   "date_gap_columns": ["order_date"],
-  "numeric_outlier_columns": ["amount"]
+  "numeric_outlier_columns": ["amount"],
+  "expected_columns": [
+    "order_id",
+    "customer_id",
+    "order_date",
+    "status",
+    "region",
+    "amount"
+  ]
 }

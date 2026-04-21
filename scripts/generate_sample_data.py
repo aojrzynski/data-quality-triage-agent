@@ -40,6 +40,7 @@ def build_clean_rows() -> list[dict[str, str]]:
 
 
 def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
+    """Write rows to a CSV file using the standard fieldnames."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -49,6 +50,7 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 def write_json(path: Path, payload: dict) -> None:
+    """Write a JSON payload to file."""
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with path.open("w", encoding="utf-8") as f:
@@ -56,6 +58,7 @@ def write_json(path: Path, payload: dict) -> None:
 
 
 def build_nulls_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with missing customer IDs."""
     rows = deepcopy(clean_rows)
 
     for idx in [6, 13, 20]:
@@ -65,6 +68,7 @@ def build_nulls_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]
 
 
 def build_duplicate_keys_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with duplicate order IDs."""
     rows = deepcopy(clean_rows)
 
     rows[10]["order_id"] = rows[4]["order_id"]
@@ -74,6 +78,7 @@ def build_duplicate_keys_dataset(clean_rows: list[dict[str, str]]) -> list[dict[
 
 
 def build_bad_categories_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with typo / unexpected status values."""
     rows = deepcopy(clean_rows)
 
     rows[7]["status"] = "pendng"
@@ -101,16 +106,38 @@ def build_outliers_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, s
     return rows
 
 
+def build_schema_surprises_dataset(clean_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create a dataset with one missing column and one extra column."""
+    rows: list[dict[str, str]] = []
+
+    for row in deepcopy(clean_rows):
+        new_row = {
+            "order_id": row["order_id"],
+            "customer_id": row["customer_id"],
+            "order_date": row["order_date"],
+            "status": row["status"],
+            "amount": row["amount"],
+            "sales_channel": "online",
+        }
+        rows.append(new_row)
+
+    return rows
+
+
 def main() -> None:
+    """Generate all sample datasets and expected result fixtures."""
     clean_rows = build_clean_rows()
 
+    # Clean dataset
     write_csv(CLEAN_DIR / "orders_clean.csv", clean_rows)
 
+    # Broken datasets
     nulls_rows = build_nulls_dataset(clean_rows)
     duplicate_rows = build_duplicate_keys_dataset(clean_rows)
     bad_category_rows = build_bad_categories_dataset(clean_rows)
     date_gaps_rows = build_date_gaps_dataset(clean_rows)
     outliers_rows = build_outliers_dataset(clean_rows)
+    schema_surprises_rows = build_schema_surprises_dataset(clean_rows)
 
     write_csv(BROKEN_DIR / "orders_nulls.csv", nulls_rows)
     write_csv(BROKEN_DIR / "orders_duplicate_keys.csv", duplicate_rows)
@@ -118,6 +145,21 @@ def main() -> None:
     write_csv(BROKEN_DIR / "orders_date_gaps.csv", date_gaps_rows)
     write_csv(BROKEN_DIR / "orders_outliers.csv", outliers_rows)
 
+    # Schema surprises dataset needs custom fieldnames because its columns differ
+    schema_fieldnames = [
+        "order_id",
+        "customer_id",
+        "order_date",
+        "status",
+        "amount",
+        "sales_channel",
+    ]
+    with (BROKEN_DIR / "orders_schema_surprises.csv").open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=schema_fieldnames)
+        writer.writeheader()
+        writer.writerows(schema_surprises_rows)
+
+    # Expected findings
     write_json(
         EXPECTED_DIR / "orders_nulls_expected.json",
         {
@@ -127,10 +169,10 @@ def main() -> None:
                     "type": "missing_values",
                     "column": "customer_id",
                     "severity": "high",
-                    "min_count": 3
+                    "min_count": 3,
                 }
-            ]
-        }
+            ],
+        },
     )
 
     write_json(
@@ -141,10 +183,10 @@ def main() -> None:
                 {
                     "type": "duplicate_key",
                     "column": "order_id",
-                    "severity": "critical"
+                    "severity": "critical",
                 }
-            ]
-        }
+            ],
+        },
     )
 
     write_json(
@@ -156,10 +198,10 @@ def main() -> None:
                     "type": "unexpected_values",
                     "column": "status",
                     "severity": "medium",
-                    "unexpected_values": ["pendng", "shiped", "cncelled"]
+                    "unexpected_values": ["pendng", "shiped", "cncelled"],
                 }
-            ]
-        }
+            ],
+        },
     )
 
     write_json(
@@ -171,10 +213,10 @@ def main() -> None:
                     "type": "date_gaps",
                     "column": "order_date",
                     "severity": "medium",
-                    "min_gap_count": 2
+                    "min_gap_count": 2,
                 }
-            ]
-        }
+            ],
+        },
     )
 
     write_json(
@@ -186,10 +228,26 @@ def main() -> None:
                     "type": "numeric_outliers",
                     "column": "amount",
                     "severity": "medium",
-                    "min_outlier_count": 1
+                    "min_outlier_count": 1,
                 }
-            ]
-        }
+            ],
+        },
+    )
+
+    write_json(
+        EXPECTED_DIR / "orders_schema_surprises_expected.json",
+        {
+            "dataset": "orders_schema_surprises.csv",
+            "expected_findings": [
+                {
+                    "type": "schema_surprises",
+                    "column": None,
+                    "severity": "high",
+                    "missing_columns": ["region"],
+                    "unexpected_columns": ["sales_channel"],
+                }
+            ],
+        },
     )
 
     print("Sample data generated successfully.")
@@ -199,6 +257,7 @@ def main() -> None:
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_bad_categories.csv'}")
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_date_gaps.csv'}")
     print(f"Broken dataset:  {BROKEN_DIR / 'orders_outliers.csv'}")
+    print(f"Broken dataset:  {BROKEN_DIR / 'orders_schema_surprises.csv'}")
     print(f"Expected files:  {EXPECTED_DIR}")
 
 

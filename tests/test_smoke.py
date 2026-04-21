@@ -3,6 +3,7 @@ from src.checks import (
     check_duplicate_keys,
     check_missing_values,
     check_numeric_outliers,
+    check_schema_surprises,
     check_unexpected_categorical_values,
     run_checks,
 )
@@ -44,6 +45,14 @@ def test_can_load_default_config() -> None:
     ]
     assert config.date_gap_columns == ["order_date"]
     assert config.numeric_outlier_columns == ["amount"]
+    assert config.expected_columns == [
+        "order_id",
+        "customer_id",
+        "order_date",
+        "status",
+        "region",
+        "amount",
+    ]
 
 
 def test_dataset_name_from_path() -> None:
@@ -221,6 +230,44 @@ def test_compare_to_expected_passes_for_outliers_fixture() -> None:
     )
 
     expected_payload = load_json("tests/fixtures/expected/orders_outliers_expected.json")
+    comparison_messages = compare_to_expected(run_result, expected_payload)
+
+    assert comparison_messages == []
+
+def test_schema_surprises_check_finds_missing_and_extra_columns() -> None:
+    df = load_csv("sample_data/broken/orders_schema_surprises.csv")
+    findings = check_schema_surprises(
+        df,
+        expected_columns=[
+            "order_id",
+            "customer_id",
+            "order_date",
+            "status",
+            "region",
+            "amount",
+        ],
+    )
+    scored = score_findings(findings)
+
+    assert len(scored) == 1
+    assert scored[0].finding_type == "schema_surprises"
+    assert scored[0].severity == "high"
+    assert scored[0].evidence["missing_columns"] == ["region"]
+    assert scored[0].evidence["unexpected_columns"] == ["sales_channel"]
+
+
+def test_compare_to_expected_passes_for_schema_surprises_fixture() -> None:
+    df = load_csv("sample_data/broken/orders_schema_surprises.csv")
+    profile = build_dataset_profile(df, "orders_schema_surprises.csv")
+    config = load_agent_config()
+    findings = score_findings(run_checks(df, config=config))
+    run_result = RunResult(
+        dataset_name="orders_schema_surprises.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    expected_payload = load_json("tests/fixtures/expected/orders_schema_surprises_expected.json")
     comparison_messages = compare_to_expected(run_result, expected_payload)
 
     assert comparison_messages == []
