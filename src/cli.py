@@ -7,7 +7,7 @@ from pathlib import Path
 
 from src.checks import run_checks
 from src.config import load_agent_config
-from src.io import load_csv, load_json, save_json, save_markdown
+from src.io import load_dataset, load_json, save_json, save_markdown
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.reporting import build_markdown_report
@@ -17,13 +17,18 @@ from src.scoring import score_findings
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Run the Data Quality Triage Agent.")
-    parser.add_argument("--input", required=True, help="Path to the input CSV file.")
+    parser.add_argument("--input", required=True, help="Path to the input dataset file.")
     parser.add_argument("--output-dir", default="outputs", help="Directory for outputs.")
     parser.add_argument("--expected", help="Optional expected-results JSON fixture.")
     parser.add_argument(
         "--config",
         default="config/default_config.json",
         help="Path to the config JSON file.",
+    )
+    parser.add_argument(
+        "--sheet",
+        default="0",
+        help="Excel sheet name or sheet index (used only for .xlsx files). Default is 0.",
     )
     return parser.parse_args()
 
@@ -104,6 +109,7 @@ def compare_to_expected(run_result: RunResult, expected_payload: dict) -> list[s
 
     return messages
 
+
 def main() -> None:
     """Run the current version of the agent."""
     args = parse_args()
@@ -111,10 +117,16 @@ def main() -> None:
     input_path = Path(args.input)
     output_dir = Path(args.output_dir)
 
+    sheet_arg: str | int
+    if args.sheet.isdigit():
+        sheet_arg = int(args.sheet)
+    else:
+        sheet_arg = args.sheet
+
     dataset_name = dataset_name_from_path(input_path)
     config = load_agent_config(args.config)
 
-    df = load_csv(input_path)
+    df = load_dataset(input_path, sheet_name=sheet_arg)
     profile = build_dataset_profile(df=df, dataset_name=dataset_name)
 
     findings = run_checks(df, config=config)

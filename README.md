@@ -23,18 +23,18 @@ Implemented checks:
 - duplicate keys
 - unexpected categorical values
 
-## Planned checks
-- Missing values
-- Duplicate keys
-- Bad categorical values
-- Date gaps
-- Numeric outliers
-- Basic schema surprises
+## Planned scope
+- CSV and XLSX input
+- Local CLI run
+- JSON findings output
+- Markdown report output
+- Optional LLM summary later
 
 ## Run
 
 ```bash
 python -m src.cli --input sample_data/clean/orders_clean.csv
+python -m src.cli --input sample_data/clean/orders_clean.xlsx
 ```
 
 ## Outputs

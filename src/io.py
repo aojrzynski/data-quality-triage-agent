@@ -19,6 +19,37 @@ def load_csv(path: str | Path) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
+def load_excel(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
+    """Load an Excel file into a pandas DataFrame."""
+    excel_path = Path(path)
+
+    if not excel_path.exists():
+        raise FileNotFoundError(f"Excel file not found: {excel_path}")
+
+    return pd.read_excel(excel_path, sheet_name=sheet_name)
+
+
+def load_dataset(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
+    """Load a supported dataset file based on its extension.
+
+    Supported formats:
+    - .csv
+    - .xlsx
+    """
+    dataset_path = Path(path)
+    suffix = dataset_path.suffix.lower()
+
+    if suffix == ".csv":
+        return load_csv(dataset_path)
+
+    if suffix == ".xlsx":
+        return load_excel(dataset_path, sheet_name=sheet_name)
+
+    raise ValueError(
+        f"Unsupported file format: {suffix}. Supported formats are .csv and .xlsx"
+    )
+
+
 def load_json(path: str | Path) -> dict[str, Any]:
     """Load a JSON file into a Python dictionary."""
     json_path = Path(path)

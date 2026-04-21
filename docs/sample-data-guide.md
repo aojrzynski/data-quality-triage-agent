@@ -7,6 +7,11 @@ This project includes small synthetic datasets for development, testing, and dem
 - They let us test known issues
 - They are safe to publish publicly
 
+## File formats
+Sample datasets are provided as:
+- CSV
+- XLSX
+
 ## Datasets
 
 ### `sample_data/clean/orders_clean.csv`

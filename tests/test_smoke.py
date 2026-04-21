@@ -9,7 +9,7 @@ from src.checks import (
 )
 from src.cli import compare_to_expected
 from src.config import load_agent_config
-from src.io import load_csv, load_json
+from src.io import load_csv, load_dataset, load_json
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.scoring import score_findings
@@ -26,6 +26,33 @@ def test_can_load_clean_csv() -> None:
         "region",
         "amount",
     ]
+
+def test_can_load_clean_xlsx() -> None:
+    df = load_dataset("sample_data/clean/orders_clean.xlsx")
+    assert len(df) == 30
+    assert list(df.columns) == [
+        "order_id",
+        "customer_id",
+        "order_date",
+        "status",
+        "region",
+        "amount",
+    ]
+
+
+def test_can_load_broken_xlsx_and_find_issue() -> None:
+    df = load_dataset("sample_data/broken/orders_bad_categories.xlsx")
+    findings = check_unexpected_categorical_values(
+        df,
+        column="status",
+        allowed_values={"pending", "shipped", "delivered", "cancelled"},
+    )
+    scored = score_findings(findings)
+
+    assert len(scored) == 1
+    assert scored[0].finding_type == "unexpected_values"
+    assert scored[0].column == "status"
+    assert scored[0].severity == "medium"
 
 
 def test_can_load_expected_json_fixture() -> None:

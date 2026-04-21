@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import pandas as pd
 import json
 from copy import deepcopy
 from datetime import date, datetime, timedelta
@@ -47,6 +48,23 @@ def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_excel(path: Path, rows: list[dict[str, str]]) -> None:
+    """Write rows to an Excel file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows)
+    df.to_excel(path, index=False)
+
+def write_excel_with_columns(
+    path: Path,
+    rows: list[dict[str, str]],
+    columns: list[str],
+) -> None:
+    """Write rows to an Excel file using an explicit column order."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows, columns=columns)
+    df.to_excel(path, index=False)
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -130,6 +148,7 @@ def main() -> None:
 
     # Clean dataset
     write_csv(CLEAN_DIR / "orders_clean.csv", clean_rows)
+    write_excel(CLEAN_DIR / "orders_clean.xlsx", clean_rows)
 
     # Broken datasets
     nulls_rows = build_nulls_dataset(clean_rows)
@@ -145,6 +164,12 @@ def main() -> None:
     write_csv(BROKEN_DIR / "orders_date_gaps.csv", date_gaps_rows)
     write_csv(BROKEN_DIR / "orders_outliers.csv", outliers_rows)
 
+    write_excel(BROKEN_DIR / "orders_nulls.xlsx", nulls_rows)
+    write_excel(BROKEN_DIR / "orders_duplicate_keys.xlsx", duplicate_rows)
+    write_excel(BROKEN_DIR / "orders_bad_categories.xlsx", bad_category_rows)
+    write_excel(BROKEN_DIR / "orders_date_gaps.xlsx", date_gaps_rows)
+    write_excel(BROKEN_DIR / "orders_outliers.xlsx", outliers_rows)
+
     # Schema surprises dataset needs custom fieldnames because its columns differ
     schema_fieldnames = [
         "order_id",
@@ -158,6 +183,12 @@ def main() -> None:
         writer = csv.DictWriter(f, fieldnames=schema_fieldnames)
         writer.writeheader()
         writer.writerows(schema_surprises_rows)
+        
+    write_excel_with_columns(
+        BROKEN_DIR / "orders_schema_surprises.xlsx",
+        schema_surprises_rows,
+        schema_fieldnames,
+    )
 
     # Expected findings
     write_json(
