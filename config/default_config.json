@@ -1,0 +1,6 @@
+{
+  "key_columns": ["order_id"],
+  "categorical_rules": {
+    "status": ["pending", "shipped", "delivered", "cancelled"]
+  }
+}

@@ -1,9 +1,4 @@
-"""Core internal models for the Data Quality Triage Agent.
-
-These models keep the rest of the code consistent.
-Instead of passing around loose dictionaries everywhere,
-we define a few clear shapes for the important data.
-"""
+"""Core internal models for the Data Quality Triage Agent."""
 
 from __future__ import annotations
 
@@ -13,11 +8,7 @@ from typing import Any
 
 @dataclass
 class DatasetProfile:
-    """Basic descriptive information about a dataset.
-
-    This is not a list of data quality problems.
-    It is just a structured summary of what the file contains.
-    """
+    """Basic descriptive information about a dataset."""
 
     dataset_name: str
     row_count: int
@@ -28,17 +19,12 @@ class DatasetProfile:
     unique_counts: dict[str, int]
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert the profile to a plain dictionary."""
         return asdict(self)
 
 
 @dataclass
 class Finding:
-    """Represents one data quality issue.
-
-    We are not using this fully yet, but defining it now gives us a stable
-    shape for later milestones.
-    """
+    """Represents one data quality issue."""
 
     finding_type: str
     column: str | None
@@ -47,26 +33,39 @@ class Finding:
     evidence: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert the finding to a plain dictionary."""
         return asdict(self)
 
 
 @dataclass
-class RunResult:
-    """Top-level output object for one run of the agent.
+class AgentConfig:
+    """Configuration for which checks to run and how to run them."""
 
-    This lets us save one structured JSON file containing:
-    - input dataset details
-    - profile summary
-    - findings (empty for now)
-    """
+    key_columns: list[str] = field(default_factory=list)
+    categorical_rules: dict[str, list[str]] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "AgentConfig":
+        return cls(
+            key_columns=list(payload.get("key_columns", [])),
+            categorical_rules={
+                str(column): list(values)
+                for column, values in payload.get("categorical_rules", {}).items()
+            },
+        )
+
+
+@dataclass
+class RunResult:
+    """Top-level output object for one run of the agent."""
 
     dataset_name: str
     profile: DatasetProfile
     findings: list[Finding]
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert the full run result to a plain dictionary."""
         return {
             "dataset_name": self.dataset_name,
             "profile": self.profile.to_dict(),

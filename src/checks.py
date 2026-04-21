@@ -1,15 +1,10 @@
-"""Data quality checks.
-
-This module contains simple deterministic checks.
-These checks are the real source of truth for issue detection.
-The LLM layer, if added later, should explain findings rather than discover them.
-"""
+"""Data quality checks."""
 
 from __future__ import annotations
 
 import pandas as pd
 
-from src.models import Finding
+from src.models import AgentConfig, Finding
 
 
 def check_missing_values(df: pd.DataFrame) -> list[Finding]:
@@ -24,7 +19,7 @@ def check_missing_values(df: pd.DataFrame) -> list[Finding]:
                 Finding(
                     finding_type="missing_values",
                     column=column,
-                    severity="info",  # temporary; real severity comes later
+                    severity="info",
                     message=f"Column '{column}' contains {missing_count} missing values.",
                     evidence={
                         "missing_count": missing_count,
@@ -113,22 +108,22 @@ def check_unexpected_categorical_values(
     ]
 
 
-def run_checks(df: pd.DataFrame) -> list[Finding]:
-    """Run the first set of hard-coded checks for the MVP.
-
-    For now, this function is deliberately simple and explicit.
-    Later, we can make it more flexible and configurable.
-    """
+def run_checks(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
+    """Run checks using the supplied config."""
     findings: list[Finding] = []
 
     findings.extend(check_missing_values(df))
-    findings.extend(check_duplicate_keys(df, key_column="order_id"))
-    findings.extend(
-        check_unexpected_categorical_values(
-            df,
-            column="status",
-            allowed_values={"pending", "shipped", "delivered", "cancelled"},
+
+    for key_column in config.key_columns:
+        findings.extend(check_duplicate_keys(df, key_column=key_column))
+
+    for column, allowed_values in config.categorical_rules.items():
+        findings.extend(
+            check_unexpected_categorical_values(
+                df,
+                column=column,
+                allowed_values=set(allowed_values),
+            )
         )
-    )
 
     return findings

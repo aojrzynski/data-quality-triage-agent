@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from src.checks import run_checks
+from src.config import load_agent_config
 from src.io import load_csv, load_json, save_json, save_markdown
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
@@ -29,6 +30,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expected",
         help="Optional path to an expected-results JSON fixture.",
+    )
+    parser.add_argument(
+        "--config",
+        default="config/default_config.json",
+        help="Path to the config JSON file.",
     )
     return parser.parse_args()
 
@@ -89,11 +95,12 @@ def main() -> None:
     output_dir = Path(args.output_dir)
 
     dataset_name = dataset_name_from_path(input_path)
+    config = load_agent_config(args.config)
 
     df = load_csv(input_path)
     profile = build_dataset_profile(df=df, dataset_name=dataset_name)
 
-    findings = run_checks(df)
+    findings = run_checks(df, config=config)
     scored_findings = score_findings(findings)
 
     run_result = RunResult(
@@ -110,6 +117,7 @@ def main() -> None:
 
     print("Data Quality Triage Agent")
     print(f"Loaded dataset: {dataset_name}")
+    print(f"Config: {args.config}")
     print(f"Rows: {profile.row_count}")
     print(f"Columns: {profile.column_count}")
     print(f"Findings: {len(scored_findings)}")
