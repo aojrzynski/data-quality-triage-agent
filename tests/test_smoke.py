@@ -10,6 +10,7 @@ from src.checks import (
 from src.cli import compare_to_expected
 from src.config import load_agent_config
 from src.io import load_csv, load_dataset, load_json
+from src.llm_summary import build_llm_summary_payload
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.scoring import score_findings
@@ -298,3 +299,46 @@ def test_compare_to_expected_passes_for_schema_surprises_fixture() -> None:
     comparison_messages = compare_to_expected(run_result, expected_payload)
 
     assert comparison_messages == []
+
+
+def test_llm_summary_payload_contains_findings() -> None:
+    df = load_csv("sample_data/broken/orders_nulls.csv")
+    profile = build_dataset_profile(df, "orders_nulls.csv")
+    config = load_agent_config()
+    findings = score_findings(run_checks(df, config=config))
+
+    run_result = RunResult(
+        dataset_name="orders_nulls.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    payload = build_llm_summary_payload(run_result)
+
+    assert payload["dataset_name"] == "orders_nulls.csv"
+    assert payload["profile"]["row_count"] == 30
+    assert len(payload["findings"]) == 1
+    assert payload["findings"][0]["finding_type"] == "missing_values"
+
+
+def test_reporting_can_include_llm_summary() -> None:
+    from src.reporting import build_markdown_report
+
+    df = load_csv("sample_data/broken/orders_nulls.csv")
+    profile = build_dataset_profile(df, "orders_nulls.csv")
+    config = load_agent_config()
+    findings = score_findings(run_checks(df, config=config))
+
+    run_result = RunResult(
+        dataset_name="orders_nulls.csv",
+        profile=profile,
+        findings=findings,
+    )
+
+    report = build_markdown_report(
+        run_result,
+        llm_summary="## Executive Summary\n\nTest summary.",
+    )
+
+    assert "## LLM Summary" in report
+    assert "Test summary." in report

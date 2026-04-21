@@ -41,3 +41,18 @@ python -m src.cli --input sample_data/clean/orders_clean.xlsx
 The agent writes files into `outputs/`:
 - `*_profile.json`
 - `*_report.md`
+
+## Optional LLM summary
+You can optionally generate an LLM-written summary on top of the deterministic findings.
+
+This uses the OpenAI API and requires `OPENAI_API_KEY` to be set.
+
+Example:
+
+```bash
+python -m src.cli \
+  --input sample_data/broken/orders_bad_categories.xlsx \
+  --config config/default_config.json \
+  --expected tests/fixtures/expected/orders_bad_categories_expected.json \
+  --llm-summary
+```

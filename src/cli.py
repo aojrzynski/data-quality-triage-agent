@@ -8,6 +8,7 @@ from pathlib import Path
 from src.checks import run_checks
 from src.config import load_agent_config
 from src.io import load_dataset, load_json, save_json, save_markdown
+from src.llm_summary import generate_llm_summary
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.reporting import build_markdown_report
@@ -29,6 +30,16 @@ def parse_args() -> argparse.Namespace:
         "--sheet",
         default="0",
         help="Excel sheet name or sheet index (used only for .xlsx files). Default is 0.",
+    )
+    parser.add_argument(
+        "--llm-summary",
+        action="store_true",
+        help="Generate an optional LLM-written summary using the OpenAI API.",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Optional model override for the LLM summary.",
     )
     return parser.parse_args()
 
@@ -138,11 +149,19 @@ def main() -> None:
         findings=scored_findings,
     )
 
+    llm_summary = None
+    if args.llm_summary:
+        llm_summary = generate_llm_summary(run_result, model=args.model)
+
     json_output_path = output_dir / f"{input_path.stem}_profile.json"
     markdown_output_path = output_dir / f"{input_path.stem}_report.md"
 
     save_json(json_output_path, run_result.to_dict())
-    save_markdown(markdown_output_path, build_markdown_report(run_result))
+    save_markdown(markdown_output_path, build_markdown_report(run_result, llm_summary=llm_summary))
+
+    if llm_summary:
+        llm_summary_path = output_dir / f"{input_path.stem}_llm_summary.md"
+        save_markdown(llm_summary_path, llm_summary)
 
     print("Data Quality Triage Agent")
     print(f"Loaded dataset: {dataset_name}")
@@ -152,6 +171,9 @@ def main() -> None:
     print(f"Findings: {len(scored_findings)}")
     print(f"JSON output: {json_output_path}")
     print(f"Markdown output: {markdown_output_path}")
+
+    if llm_summary:
+        print(f"LLM summary: {output_dir / f'{input_path.stem}_llm_summary.md'}")
 
     if scored_findings:
         print("\nDetected findings:")

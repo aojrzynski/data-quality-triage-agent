@@ -6,6 +6,7 @@ Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: pandas<3.0,>=2.2
 Requires-Dist: openpyxl<4.0,>=3.1
+Requires-Dist: openai<2.0,>=1.0
 Provides-Extra: dev
 Requires-Dist: pytest<9.0,>=8.0; extra == "dev"
 
@@ -34,18 +35,18 @@ Implemented checks:
 - duplicate keys
 - unexpected categorical values
 
-## Planned checks
-- Missing values
-- Duplicate keys
-- Bad categorical values
-- Date gaps
-- Numeric outliers
-- Basic schema surprises
+## Planned scope
+- CSV and XLSX input
+- Local CLI run
+- JSON findings output
+- Markdown report output
+- Optional LLM summary later
 
 ## Run
 
 ```bash
 python -m src.cli --input sample_data/clean/orders_clean.csv
+python -m src.cli --input sample_data/clean/orders_clean.xlsx
 ```
 
 ## Outputs

@@ -7,7 +7,10 @@ from collections import Counter
 from src.models import RunResult
 
 
-def build_markdown_report(run_result: RunResult) -> str:
+def build_markdown_report(
+    run_result: RunResult,
+    llm_summary: str | None = None,
+) -> str:
     """Create a Markdown report for one agent run."""
     profile = run_result.profile
     severity_counts = Counter(finding.severity for finding in run_result.findings)
@@ -30,6 +33,16 @@ def build_markdown_report(run_result: RunResult) -> str:
             lines.append(f"- {severity.title()}: {count}")
 
     lines.append("")
+
+    if llm_summary:
+        lines.extend(
+            [
+                "## LLM Summary",
+                "",
+                llm_summary,
+                "",
+            ]
+        )
 
     if run_result.findings:
         lines.append("## Findings")
