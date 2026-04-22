@@ -7,7 +7,7 @@ from src.checks import (
     check_unexpected_categorical_values,
     run_checks,
 )
-from src.cli import compare_to_expected
+from src.expected_validation import compare_to_expected
 from src.config import load_agent_config
 from src.io import load_csv, load_dataset, load_json
 from src.llm_summary import build_llm_summary_payload

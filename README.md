@@ -1,53 +1,41 @@
 # Data Quality Triage Agent
 
-A local Python agent that reads a dataset, checks for data quality issues, and produces structured findings plus a readable report.
+A local Python CLI project for data quality triage.
 
-## Planned scope
-- CSV input first
-- Local CLI run
-- JSON findings output
-- Markdown report output
-- Optional LLM summary later
+## What it is today
+The current implementation is a **deterministic data quality triage tool** with optional LLM-written summary support.
 
-## Current status
-Current version can:
-- load a CSV file
-- build a structured dataset profile
-- run first-pass data quality checks
-- score findings by severity
-- write JSON output
-- write a Markdown report
+## Where it's going
+The target is a genuine **Data Quality Triage Agent** with a separate agent mode layered on top of deterministic checks.
 
-Implemented checks:
-- missing values
-- duplicate keys
-- unexpected categorical values
-
-## Planned scope
-- CSV and XLSX input
-- Local CLI run
-- JSON findings output
-- Markdown report output
-- Optional LLM summary later
+For canonical details, see:
+- `PROJECT_SCOPE.md`
+- `ARCHITECTURE.md`
+- `PLANS.md`
 
 ## Run
 
 ```bash
 python -m src.cli --input sample_data/clean/orders_clean.csv
 python -m src.cli --input sample_data/clean/orders_clean.xlsx
+python -m src.cli --input sample_data/clean/orders_clean.csv --mode deterministic
+```
+
+Agent mode boundary exists but is not implemented yet:
+
+```bash
+python -m src.cli --input sample_data/clean/orders_clean.csv --mode agent
 ```
 
 ## Outputs
-The agent writes files into `outputs/`:
+The CLI writes files into `outputs/`:
 - `*_profile.json`
 - `*_report.md`
 
 ## Optional LLM summary
-You can optionally generate an LLM-written summary on top of the deterministic findings.
+You can optionally generate an LLM-written summary on top of deterministic findings.
 
-This uses the OpenAI API and requires `OPENAI_API_KEY` to be set.
-
-Example:
+This uses the OpenAI API and requires `OPENAI_API_KEY`.
 
 ```bash
 python -m src.cli \
