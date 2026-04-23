@@ -65,8 +65,9 @@ def test_agent_executor_records_action_history_and_stop_rationale(tmp_path: Path
     assert result.state.actions
     assert all(action.status in {"completed", "skipped"} for action in result.state.actions)
     assert result.state.stop_rationale is not None
-    assert result.state.stop_rationale.code == "PLAN_COMPLETED"
+    assert result.state.stop_rationale.code == "PLAN_AND_INVESTIGATION_COMPLETED"
     assert result.artifacts.trace_json_path.exists()
+    assert result.artifacts.report_markdown_path.exists()
 
 
 def test_agent_executor_intake_hard_failure_stops_without_actions(tmp_path: Path) -> None:
@@ -173,6 +174,67 @@ def test_agent_categorical_action_skips_without_matching_rule_set(tmp_path: Path
     )
     assert categorical_action.status == "skipped"
     assert "No configured categorical rule set" in categorical_action.details["skip_reason"]
+
+
+def test_duplicate_findings_trigger_duplicate_investigation(tmp_path: Path) -> None:
+    result = run_agent_mode(
+        input_path="sample_data/broken/orders_duplicate_keys.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+
+    investigation_actions = [action for action in result.state.actions if action.action_name == "investigate_duplicate_keys"]
+    assert investigation_actions
+    assert investigation_actions[0].status == "completed"
+    assert "duplicate_value_examples" in investigation_actions[0].details
+
+
+def test_outlier_and_categorical_findings_trigger_investigations(tmp_path: Path) -> None:
+    outlier_result = run_agent_mode(
+        input_path="sample_data/broken/orders_outliers.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+    outlier_actions = [action.action_name for action in outlier_result.state.actions]
+    assert "investigate_numeric_outliers" in outlier_actions
+
+    categorical_result = run_agent_mode(
+        input_path="sample_data/broken/orders_bad_categories.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+    categorical_actions = [action.action_name for action in categorical_result.state.actions]
+    assert "investigate_unexpected_categorical_values" in categorical_actions
+
+
+def test_trace_contains_investigation_results_and_triage_summary(tmp_path: Path) -> None:
+    result = run_agent_mode(
+        input_path="sample_data/broken/orders_duplicate_keys.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+
+    trace = json.loads(result.artifacts.trace_json_path.read_text())
+    assert "investigations" in trace
+    assert trace["investigations"]
+    assert "triage_summary" in trace
+    assert trace["triage_summary"]["top_issues"]
+    assert trace["triage_summary"]["severity_view"]
+
+
+def test_no_investigation_case_is_explicit(tmp_path: Path) -> None:
+    result = run_agent_mode(
+        input_path="sample_data/clean/orders_clean.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+
+    assert result.state.context["investigation_results"] == []
+    assert "investigation_note" in result.state.context
+    trace = json.loads(result.artifacts.trace_json_path.read_text())
+    assert trace["investigations"] == []
+    report_text = result.artifacts.report_markdown_path.read_text()
+    assert "## Investigations performed" in report_text
 
 
 def test_agent_skips_role_bound_tool_when_no_binding_available(tmp_path: Path) -> None:

@@ -264,7 +264,16 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
             f"{result.state.stop_rationale.code} - {result.state.stop_rationale.reason}"
         )
 
+    top_families = ", ".join(
+        f"{family}={count}"
+        for family, count in result.triage_summary.get("issue_categories", {}).items()
+    ) or "none"
+    investigations = result.state.context.get("investigation_results", [])
+
+    print(f"Top finding families: {top_families}")
+    print(f"Investigations performed: {'yes' if investigations else 'no'}")
     print(f"Agent trace output: {result.artifacts.trace_json_path}")
+    print(f"Agent report output: {result.artifacts.report_markdown_path}")
 
     if suitability.hard_failure:
         raise SystemExit(1)

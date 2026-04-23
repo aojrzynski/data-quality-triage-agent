@@ -73,7 +73,7 @@ Acceptance criteria:
 - agent mode executes role-bound tools against inferred or overridden columns
 - trace output explains bound columns, binding source, and skips
 
-## Milestone 8 — Investigation and triage output (planned)
+## Milestone 8 — Investigation and triage output (completed)
 - follow-up investigation actions
 - stop rationale and triage-style conclusions
 - separate triage narrative reporting path
