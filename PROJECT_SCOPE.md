@@ -30,12 +30,14 @@ Deterministic mode means:
 
 This mode is intended to remain stable and backward compatible.
 
-### Agent mode (early implementation)
-Agent mode will eventually mean:
-- Explicit orchestration/planning steps (rule-based planner/executor in Stage 6).
-- Assumption tracking (currently inferred assumptions recorded in run state).
-- Dynamic deterministic tool invocation with inspectable action history.
+### Agent mode (Stage 7 implementation)
+Agent mode currently means:
+- Explicit orchestration/planning steps (rule-based planner/executor).
+- Assumption tracking (inferred assumptions recorded in run state).
+- Assumption-driven role-to-tool binding resolution (override -> inferred -> config fallback).
+- Dynamic deterministic tool invocation against resolved columns, with inspectable action history.
 - Explicit stop conditions and stop rationale capture.
+- Categorical validation only where selected columns have configured categorical rule sets; otherwise actions are explicitly skipped and traced.
 - Future work: iterative investigation and triage-style conclusions.
 
 ## In scope

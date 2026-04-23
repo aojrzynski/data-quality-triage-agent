@@ -27,20 +27,20 @@ class PlanResult:
     rationale: list[str]
 
 
-def _has_key_signal(config: AgentConfig, inference: RoleInferenceResult) -> bool:
-    return bool(config.key_columns and inference.key_candidates)
+def _has_key_signal(_config: AgentConfig, inference: RoleInferenceResult) -> bool:
+    return bool(inference.key_candidates)
 
 
-def _has_date_signal(config: AgentConfig, inference: RoleInferenceResult) -> bool:
-    return bool(config.date_gap_columns and inference.date_candidates)
+def _has_date_signal(_config: AgentConfig, inference: RoleInferenceResult) -> bool:
+    return bool(inference.date_candidates)
 
 
-def _has_numeric_signal(config: AgentConfig, inference: RoleInferenceResult) -> bool:
-    return bool(config.numeric_outlier_columns and inference.numeric_measure_candidates)
+def _has_numeric_signal(_config: AgentConfig, inference: RoleInferenceResult) -> bool:
+    return bool(inference.numeric_measure_candidates)
 
 
-def _has_categorical_signal(config: AgentConfig, inference: RoleInferenceResult) -> bool:
-    return bool(config.categorical_rules and inference.categorical_candidates)
+def _has_categorical_signal(_config: AgentConfig, inference: RoleInferenceResult) -> bool:
+    return bool(inference.categorical_candidates)
 
 
 def build_rule_based_plan(
@@ -84,45 +84,45 @@ def build_rule_based_plan(
         actions.append(
             PlannedAction(
                 tool_name="duplicate_keys",
-                reason="Key role candidates and configured keys exist; check duplicate identifiers.",
+                reason="Key role candidates exist; run duplicate identifier checks with resolved bindings.",
                 priority=30,
                 role_signals=tuple(c.column_name for c in inference_result.key_candidates),
             )
         )
     else:
-        rationale.append("Skipped duplicate_keys because key-role candidates or configured key columns are absent.")
+        rationale.append("Skipped duplicate_keys because key-role candidates are absent.")
 
     if _has_categorical_signal(config, inference_result):
         actions.append(
             PlannedAction(
                 tool_name="unexpected_categorical_values",
-                reason="Categorical role candidates exist; validate values against configured rule sets.",
+                reason="Categorical role candidates exist; validate where configured categorical rule sets are available.",
                 priority=40,
                 role_signals=tuple(c.column_name for c in inference_result.categorical_candidates),
             )
         )
     else:
         rationale.append(
-            "Skipped unexpected_categorical_values because categorical role candidates or category rules are absent."
+            "Skipped unexpected_categorical_values because categorical role candidates are absent."
         )
 
     if _has_date_signal(config, inference_result):
         actions.append(
             PlannedAction(
                 tool_name="date_gaps",
-                reason="Date role candidates exist; check continuity across configured date columns.",
+                reason="Date role candidates exist; check continuity on resolved date bindings.",
                 priority=50,
                 role_signals=tuple(c.column_name for c in inference_result.date_candidates),
             )
         )
     else:
-        rationale.append("Skipped date_gaps because date-role candidates or configured date columns are absent.")
+        rationale.append("Skipped date_gaps because date-role candidates are absent.")
 
     if _has_numeric_signal(config, inference_result):
         actions.append(
             PlannedAction(
                 tool_name="numeric_outliers",
-                reason="Numeric-measure candidates exist; evaluate configured numeric columns for outliers.",
+                reason="Numeric-measure candidates exist; evaluate resolved numeric bindings for outliers.",
                 priority=60,
                 role_signals=tuple(
                     c.column_name for c in inference_result.numeric_measure_candidates
@@ -131,7 +131,7 @@ def build_rule_based_plan(
         )
     else:
         rationale.append(
-            "Skipped numeric_outliers because numeric-measure candidates or configured outlier columns are absent."
+            "Skipped numeric_outliers because numeric-measure candidates are absent."
         )
 
     ordered_actions = sorted(actions, key=lambda action: action.priority)

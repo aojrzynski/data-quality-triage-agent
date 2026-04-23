@@ -1,0 +1,6 @@
+trade_id,trade_date,notional,instrument_type,counterparty
+T001,2025-01-02,1000000,Swap,BankA
+T002,2025-01-03,1100000,Forward,BankB
+T002,2025-01-05,1200000,Option,BankB
+T004,2025-01-06,10000000,Swap,BankC
+T005,2025-01-07,1300000,Future,BankA

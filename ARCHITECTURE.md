@@ -7,7 +7,7 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 6 baseline)
+## Current architecture (Stage 7 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
@@ -27,7 +27,8 @@ The design principle is incremental evolution: preserve deterministic reliabilit
   - deterministic execution path remains stable
   - agent mode now runs rule-based planning/execution and surfaces trace details
 - `src/planner.py`: rule-based selection of deterministic tool sequence.
-- `src/agent_runner.py`: executor loop + action history + stop rationale + trace artifact.
+- `src/bindings.py`: explicit assumption-to-tool binding resolution (override/inferred/config fallback).
+- `src/agent_runner.py`: executor loop + resolved bindings + action history + stop rationale + trace artifact.
 
 ### 4) Reporting and output layer
 - `src/reporting.py`: deterministic Markdown report generation.
@@ -66,14 +67,15 @@ Responsibilities:
 Output:
 - trustworthy findings that planner can inspect and reference
 
-### Layer D: Agent orchestration (future)
+### Layer D: Agent orchestration (in progress)
 Responsibilities:
-- rule-based planner/executor initially
-- track assumptions, confidence, confirmations/overrides
+- rule-based planner/executor
+- resolve and record role-to-tool bindings before execution
+- track assumptions, confidence, and non-interactive overrides
 - choose which tools to run and when to stop
 
 Output:
-- action history + stop rationale + triage conclusions scaffold
+- resolved bindings + action history + stop rationale + triage conclusions scaffold
 
 ### Layer E: Reporting (split by mode)
 Responsibilities:

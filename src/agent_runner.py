@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from src.agent_state import ActionRecord, AgentRunState, StopRationale
+from src.bindings import parse_column_override, resolve_agent_execution_bindings
 from src.config import load_agent_config
 from src.intake import IntakeResult, inspect_and_select_dataset
 from src.io import save_json
@@ -15,7 +16,7 @@ from src.models import AgentConfig, Finding
 from src.planner import PlanResult, build_rule_based_plan
 from src.role_inference import RoleInferenceResult, infer_column_roles
 from src.scoring import score_findings
-from src.tools import execute_deterministic_tool
+from src.tools import execute_agent_bound_tool
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,7 @@ def _build_trace_payload(result: AgentRunResult) -> dict:
                 for action in result.plan_result.actions
             ],
         },
+        "resolved_bindings": result.state.context.get("resolved_bindings", {}),
         "executed_actions": [_action_to_dict(action) for action in result.state.actions],
         "stop_rationale": _stop_to_dict(result.state.stop_rationale),
         "findings_summary": {
@@ -123,6 +125,10 @@ def run_agent_mode(
     output_dir: str | Path,
     config_path: str | Path,
     sheet_name: str | int | None = None,
+    agent_key_columns: str | None = None,
+    agent_date_columns: str | None = None,
+    agent_numeric_columns: str | None = None,
+    agent_categorical_columns: str | None = None,
 ) -> AgentRunResult:
     """Run first-pass agent mode: intake -> infer roles -> plan -> execute tools."""
     config: AgentConfig = load_agent_config(config_path)
@@ -151,6 +157,18 @@ def run_agent_mode(
 
     inference_result = infer_column_roles(intake_result.df)
     state.assumptions.extend(inference_result.assumptions)
+
+    bindings = resolve_agent_execution_bindings(
+        intake_result.df,
+        inference_result,
+        config,
+        key_override=parse_column_override(agent_key_columns),
+        date_override=parse_column_override(agent_date_columns),
+        numeric_override=parse_column_override(agent_numeric_columns),
+        categorical_override=parse_column_override(agent_categorical_columns),
+    )
+    state.context["resolved_bindings"] = bindings.to_dict()
+
     state.phase = "planning"
 
     plan_result = build_rule_based_plan(
@@ -174,15 +192,15 @@ def run_agent_mode(
             action = ActionRecord(action_name=planned.tool_name)
             state.actions.append(action)
             try:
-                action_findings = execute_deterministic_tool(planned.tool_name, intake_result.df, config)
-                findings.extend(action_findings)
+                execution = execute_agent_bound_tool(planned.tool_name, intake_result.df, config, bindings)
+                findings.extend(execution.findings)
                 _complete_action(
                     action,
-                    status="completed",
+                    status=execution.status,
                     details={
                         "planned_reason": planned.reason,
                         "role_signals": list(planned.role_signals),
-                        "finding_count": len(action_findings),
+                        **execution.details,
                     },
                 )
             except ValueError as exc:

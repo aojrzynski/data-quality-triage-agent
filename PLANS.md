@@ -61,7 +61,19 @@ Acceptance criteria:
 - planner/executor behavior is inspectable and deterministic-first
 - agent mode runs a traceable sequence of actions over deterministic tools
 
-## Milestone 7 — Investigation and triage output (planned)
+## Milestone 7 — Assumption-driven execution binding (completed)
+- add explicit assumption-to-tool binding resolver for agent mode
+- support agent-only non-interactive override flags for role columns
+- execute role-bound tools on resolved columns (not only static config columns)
+- record resolved bindings/binding sources in trace and action details
+- explicit skip handling for unavailable bindings and missing categorical rule sets
+
+Acceptance criteria:
+- deterministic mode remains stable and config-driven
+- agent mode executes role-bound tools against inferred or overridden columns
+- trace output explains bound columns, binding source, and skips
+
+## Milestone 8 — Investigation and triage output (planned)
 - follow-up investigation actions
 - stop rationale and triage-style conclusions
 - separate triage narrative reporting path
@@ -69,7 +81,7 @@ Acceptance criteria:
 Acceptance criteria:
 - agent mode produces a clear triage conclusion with traceable action history
 
-## Milestone 8 — Optional human-in-the-loop + polish (planned)
+## Milestone 9 — Optional human-in-the-loop + polish (planned)
 - user confirmation/override for critical assumptions
 - optional LLM polish for summaries/plans (still non-authoritative)
 

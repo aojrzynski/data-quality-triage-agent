@@ -194,3 +194,53 @@ def test_cli_explicit_sheet_index_prints_resolved_sheet_name(
 
     assert "Intake sheet selection: explicit" in captured.out
     assert "Selected sheet: Orders" in captured.out
+
+
+def test_agent_mode_cli_accepts_override_flags(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "tests/fixtures/role_inference/trades_stage7.csv",
+            "--mode",
+            "agent",
+            "--output-dir",
+            str(output_dir),
+            "--agent-key-columns",
+            "trade_id",
+            "--agent-date-columns",
+            "trade_date",
+        ],
+    )
+
+    cli.main()
+    captured = capsys.readouterr()
+    assert "Mode: agent" in captured.out
+
+
+def test_deterministic_mode_rejects_agent_override_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "sample_data/clean/orders_clean.csv",
+            "--mode",
+            "deterministic",
+            "--agent-key-columns",
+            "order_id",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    assert "Agent-only override flags" in str(exc.value)

@@ -54,6 +54,26 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional model override for the LLM summary.",
     )
+    parser.add_argument(
+        "--agent-key-columns",
+        default=None,
+        help="Agent mode only: comma-separated key columns override.",
+    )
+    parser.add_argument(
+        "--agent-date-columns",
+        default=None,
+        help="Agent mode only: comma-separated date columns override.",
+    )
+    parser.add_argument(
+        "--agent-numeric-columns",
+        default=None,
+        help="Agent mode only: comma-separated numeric columns override.",
+    )
+    parser.add_argument(
+        "--agent-categorical-columns",
+        default=None,
+        help="Agent mode only: comma-separated categorical columns override.",
+    )
     return parser.parse_args()
 
 
@@ -179,6 +199,10 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
         output_dir=args.output_dir,
         config_path=args.config,
         sheet_name=sheet_arg,
+        agent_key_columns=args.agent_key_columns,
+        agent_date_columns=args.agent_date_columns,
+        agent_numeric_columns=args.agent_numeric_columns,
+        agent_categorical_columns=args.agent_categorical_columns,
     )
 
     suitability = result.intake_result.selected_candidate.suitability
@@ -223,12 +247,28 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def _agent_override_flags_present(args: argparse.Namespace) -> bool:
+    return any(
+        [
+            args.agent_key_columns,
+            args.agent_date_columns,
+            args.agent_numeric_columns,
+            args.agent_categorical_columns,
+        ]
+    )
+
+
 def main() -> None:
     """Run the current version of the agent."""
     args = parse_args()
     if args.mode == "agent":
         _run_agent_mode(args)
         return
+
+    if _agent_override_flags_present(args):
+        raise SystemExit(
+            "Agent-only override flags (--agent-*-columns) are only supported with --mode agent."
+        )
 
     _run_deterministic_mode(args)
 
