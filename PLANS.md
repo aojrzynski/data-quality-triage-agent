@@ -42,7 +42,7 @@ Acceptance criteria:
 - XLSX default sheet selection is stronger than sheet index 0
 - suitability signals are surfaced clearly before checks
 
-## Milestone 5 — Role inference + assumptions (in progress)
+## Milestone 5 — Role inference + assumptions (completed)
 - deterministic, rule-based inference for key/date/numeric/categorical candidates
 - structured assumption objects with confidence, provenance, and status
 - CLI surfacing of inferred assumptions before checks
@@ -52,7 +52,7 @@ Acceptance criteria:
 - role assumptions are explicit and inspectable
 - deterministic tools remain the source of truth for issue detection
 
-## Milestone 6 — Rule-based planner/executor (planned)
+## Milestone 6 — Rule-based planner/executor (completed)
 - initial agent-mode action loop (rule-based, not LLM-first)
 - dynamic deterministic tool selection
 - action history and stop-condition handling

@@ -2,7 +2,12 @@ from src.checks import run_checks
 from src.config import load_agent_config
 from src.io import load_csv
 from src.scoring import score_findings
-from src.tools import list_deterministic_tools, run_deterministic_tools
+from src.tools import (
+    execute_deterministic_tool,
+    get_deterministic_tool,
+    list_deterministic_tools,
+    run_deterministic_tools,
+)
 
 
 def test_tool_registry_contains_expected_tools() -> None:
@@ -53,3 +58,14 @@ def test_run_deterministic_tools_finds_known_issues() -> None:
     ]
     assert len(matching) == 1
     assert matching[0].severity == "medium"
+
+
+def test_get_and_execute_single_tool() -> None:
+    df = load_csv("sample_data/broken/orders_nulls.csv")
+    config = load_agent_config()
+
+    tool = get_deterministic_tool("missing_values")
+    findings = execute_deterministic_tool("missing_values", df, config)
+
+    assert tool.spec.name == "missing_values"
+    assert any(f.finding_type == "missing_values" for f in findings)

@@ -134,6 +134,23 @@ _DETERMINISTIC_TOOLS: tuple[Tool, ...] = (
     ),
 )
 
+def get_deterministic_tool(name: str) -> Tool:
+    """Return one deterministic tool wrapper by name."""
+    for tool in _DETERMINISTIC_TOOLS:
+        if tool.spec.name == name:
+            return tool
+    raise ValueError(f"Unknown deterministic tool: {name}")
+
+
+def execute_deterministic_tool(
+    name: str,
+    df: pd.DataFrame,
+    config: AgentConfig,
+) -> list[Finding]:
+    """Execute one deterministic tool by name."""
+    tool = get_deterministic_tool(name)
+    return tool.execute(df, config)
+
 
 def list_deterministic_tools() -> tuple[ToolSpec, ...]:
     """Return metadata for deterministic tools available to orchestrators."""

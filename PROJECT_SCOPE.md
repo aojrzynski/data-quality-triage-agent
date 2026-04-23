@@ -30,13 +30,13 @@ Deterministic mode means:
 
 This mode is intended to remain stable and backward compatible.
 
-### Agent mode (planned)
+### Agent mode (early implementation)
 Agent mode will eventually mean:
-- Explicit orchestration/planning steps.
-- Rule-based early implementation (before advanced LLM orchestration).
-- Assumption tracking (inferred vs confirmed vs overridden).
-- Dynamic tool invocation and iterative investigation.
-- Explicit stop conditions and triage-style conclusions.
+- Explicit orchestration/planning steps (rule-based planner/executor in Stage 6).
+- Assumption tracking (currently inferred assumptions recorded in run state).
+- Dynamic deterministic tool invocation with inspectable action history.
+- Explicit stop conditions and stop rationale capture.
+- Future work: iterative investigation and triage-style conclusions.
 
 ## In scope
 - Local-first operation.

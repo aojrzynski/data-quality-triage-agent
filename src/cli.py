@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from src.agent_runner import run_agent_mode
 from src.checks import run_checks
 from src.config import load_agent_config
 from src.expected_validation import compare_to_expected
@@ -12,9 +13,9 @@ from src.intake import inspect_and_select_dataset
 from src.io import load_json, save_json, save_markdown
 from src.llm_summary import generate_llm_summary
 from src.models import RunResult
-from src.role_inference import RoleInferenceResult, infer_column_roles
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.reporting import build_markdown_report
+from src.role_inference import RoleInferenceResult, infer_column_roles
 from src.scoring import score_findings
 
 
@@ -41,7 +42,7 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         choices=["deterministic", "agent"],
         default="deterministic",
-        help="Execution mode. Deterministic mode is stable; agent mode is planned.",
+        help="Execution mode. Deterministic mode is stable; agent mode is rule-based.",
     )
     parser.add_argument(
         "--llm-summary",
@@ -67,27 +68,18 @@ def _format_role_candidates(label: str, candidates: list) -> str:
     return f"{label}: {rendered}"
 
 
-def main() -> None:
-    """Run the current version of the agent."""
-    args = parse_args()
+def _resolve_sheet_arg(sheet: str | None) -> str | int | None:
+    if sheet is None:
+        return None
+    if str(sheet).isdigit():
+        return int(sheet)
+    return str(sheet)
 
-    if args.mode == "agent":
-        print("Agent mode is not implemented yet.")
-        print(
-            "Use --mode deterministic (or omit --mode) to run the stable deterministic checks."
-        )
-        raise SystemExit(2)
 
+def _run_deterministic_mode(args: argparse.Namespace) -> None:
     input_path = Path(args.input)
     output_dir = Path(args.output_dir)
-
-    sheet_arg: str | int | None
-    if args.sheet is None:
-        sheet_arg = None
-    elif str(args.sheet).isdigit():
-        sheet_arg = int(args.sheet)
-    else:
-        sheet_arg = str(args.sheet)
+    sheet_arg = _resolve_sheet_arg(args.sheet)
 
     dataset_name = dataset_name_from_path(input_path)
     config = load_agent_config(args.config)
@@ -176,6 +168,69 @@ def main() -> None:
                 print(f"  - {message}")
         else:
             print("- PASS")
+
+
+def _run_agent_mode(args: argparse.Namespace) -> None:
+    input_path = Path(args.input)
+    sheet_arg = _resolve_sheet_arg(args.sheet)
+
+    result = run_agent_mode(
+        input_path=input_path,
+        output_dir=args.output_dir,
+        config_path=args.config,
+        sheet_name=sheet_arg,
+    )
+
+    suitability = result.intake_result.selected_candidate.suitability
+    print("Data Quality Triage Agent")
+    print("Mode: agent")
+    print(f"Loaded dataset: {result.state.dataset_name}")
+    print(f"Intake file type: {result.intake_result.file_type}")
+    if result.intake_result.file_type == "xlsx":
+        print(f"Intake sheet selection: {result.intake_result.selection_mode}")
+        print(f"Selected sheet: {result.intake_result.selected_sheet_name}")
+    print(f"Suitability: {suitability.status} (score={suitability.score})")
+
+    print("Inferred assumptions:")
+    print(_format_role_candidates("  key", result.inference_result.key_candidates))
+    print(_format_role_candidates("  date", result.inference_result.date_candidates))
+    print(
+        _format_role_candidates(
+            "  numeric_measure", result.inference_result.numeric_measure_candidates
+        )
+    )
+    print(_format_role_candidates("  categorical", result.inference_result.categorical_candidates))
+
+    planned_tool_names = [action.tool_name for action in result.plan_result.actions]
+    print(f"Planned actions ({len(planned_tool_names)}): {', '.join(planned_tool_names) if planned_tool_names else 'none'}")
+
+    completed_action_names = [action.action_name for action in result.state.actions if action.status == "completed"]
+    print(
+        "Completed actions "
+        f"({len(completed_action_names)}): {', '.join(completed_action_names) if completed_action_names else 'none'}"
+    )
+
+    print(f"Findings: {len(result.findings)}")
+    if result.state.stop_rationale is not None:
+        print(
+            "Stop reason: "
+            f"{result.state.stop_rationale.code} - {result.state.stop_rationale.reason}"
+        )
+
+    print(f"Agent trace output: {result.artifacts.trace_json_path}")
+
+    if suitability.hard_failure:
+        raise SystemExit(1)
+
+
+def main() -> None:
+    """Run the current version of the agent."""
+    args = parse_args()
+    if args.mode == "agent":
+        _run_agent_mode(args)
+        return
+
+    _run_deterministic_mode(args)
 
 
 if __name__ == "__main__":
