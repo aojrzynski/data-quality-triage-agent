@@ -53,9 +53,12 @@ def test_agent_mode_runs_and_emits_trace(
     assert "Planned actions" in captured.out
     assert "Completed actions" in captured.out
     assert "Stop reason:" in captured.out
+    assert "Agent report output:" in captured.out
 
     trace_path = output_dir / "orders_clean_agent_trace.json"
+    report_path = output_dir / "orders_clean_agent_report.md"
     assert trace_path.exists()
+    assert report_path.exists()
 
 
 def test_cli_surfaces_auto_selected_sheet(
