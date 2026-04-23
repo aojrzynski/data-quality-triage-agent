@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.agent_runner import run_agent_mode
+from src.bindings import resolve_agent_execution_bindings
 from src.config import load_agent_config
 from src.intake import inspect_and_select_dataset
 from src.planner import build_rule_based_plan
@@ -15,7 +16,8 @@ def test_planner_selects_sensible_subset_for_orders_dataset() -> None:
     intake_result = inspect_and_select_dataset("sample_data/clean/orders_clean.csv")
     inference = infer_column_roles(intake_result.df)
 
-    plan = build_rule_based_plan(intake_result, inference, config)
+    bindings = resolve_agent_execution_bindings(intake_result.df, inference, config)
+    plan = build_rule_based_plan(intake_result, inference, config, bindings)
     planned_tools = [action.tool_name for action in plan.actions]
 
     assert planned_tools == [
@@ -42,7 +44,8 @@ def test_planner_skips_role_families_without_candidates(tmp_path: Path) -> None:
     intake_result = inspect_and_select_dataset(sparse_path)
     inference = infer_column_roles(intake_result.df)
 
-    plan = build_rule_based_plan(intake_result, inference, config)
+    bindings = resolve_agent_execution_bindings(intake_result.df, inference, config)
+    plan = build_rule_based_plan(intake_result, inference, config, bindings)
     planned_tools = [action.tool_name for action in plan.actions]
 
     assert "schema_surprises" in planned_tools
@@ -102,6 +105,42 @@ def test_agent_mode_runs_tools_against_inferred_non_orders_bindings(tmp_path: Pa
     assert "numeric_outliers" in finding_types
 
 
+def test_planner_includes_duplicate_keys_when_override_resolves_binding(tmp_path: Path) -> None:
+    override_path = tmp_path / "override_keys.csv"
+    pd.DataFrame(
+        {
+            "trade_ref": ["A1", "A1", "A2", "A3"],
+            "event_ts": ["2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04"],
+            "value_amt": [10.0, 12.0, 9.0, 11.0],
+        }
+    ).to_csv(override_path, index=False)
+
+    result = run_agent_mode(
+        input_path=override_path,
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        agent_key_columns="trade_ref",
+    )
+
+    planned_tools = [action.tool_name for action in result.plan_result.actions]
+    assert "duplicate_keys" in planned_tools
+    duplicate_action = next(action for action in result.state.actions if action.action_name == "duplicate_keys")
+    assert duplicate_action.details["bound_columns"] == ["trade_ref"]
+    assert duplicate_action.details["binding_source_by_column"]["trade_ref"] == "user_override"
+
+
+def test_planner_uses_inferred_resolved_binding_for_date_gaps(tmp_path: Path) -> None:
+    result = run_agent_mode(
+        input_path="tests/fixtures/role_inference/trades_stage7.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+
+    planned_date = next(action for action in result.plan_result.actions if action.tool_name == "date_gaps")
+    assert "Resolved date bindings exist" in planned_date.reason
+    assert "inferred: trade_date" in planned_date.reason
+
+
 def test_agent_override_columns_take_precedence_and_are_recorded(tmp_path: Path) -> None:
     result = run_agent_mode(
         input_path="tests/fixtures/role_inference/trades_stage7.csv",
@@ -144,7 +183,10 @@ def test_agent_skips_role_bound_tool_when_no_binding_available(tmp_path: Path) -
         agent_date_columns="does_not_exist",
     )
 
-    date_action = next(action for action in result.state.actions if action.action_name == "date_gaps")
-    assert date_action.status == "skipped"
-    assert date_action.details["bound_columns"] == []
-    assert "Override was provided" in date_action.details["skip_reason"]
+    planned_tools = [action.tool_name for action in result.plan_result.actions]
+    assert "date_gaps" not in planned_tools
+    assert any(
+        "Skipped date_gaps because no usable resolved date binding exists" in reason
+        for reason in result.plan_result.rationale
+    )
+    assert all(action.action_name != "date_gaps" for action in result.state.actions)
