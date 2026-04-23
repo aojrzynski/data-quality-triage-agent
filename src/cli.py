@@ -12,6 +12,7 @@ from src.intake import inspect_and_select_dataset
 from src.io import load_json, save_json, save_markdown
 from src.llm_summary import generate_llm_summary
 from src.models import RunResult
+from src.role_inference import RoleInferenceResult, infer_column_roles
 from src.profiling import build_dataset_profile, dataset_name_from_path
 from src.reporting import build_markdown_report
 from src.scoring import score_findings
@@ -53,6 +54,17 @@ def parse_args() -> argparse.Namespace:
         help="Optional model override for the LLM summary.",
     )
     return parser.parse_args()
+
+
+def _format_role_candidates(label: str, candidates: list) -> str:
+    if not candidates:
+        return f"{label}: none"
+
+    rendered = ", ".join(
+        f"{candidate.column_name} ({candidate.confidence_band}, {candidate.confidence:.2f})"
+        for candidate in candidates
+    )
+    return f"{label}: {rendered}"
 
 
 def main() -> None:
@@ -101,6 +113,17 @@ def main() -> None:
         print("Input is unsuitable for deterministic checks; stopping before profiling/checks.")
         print(f"Recommended action: {suitability.recommended_action}")
         raise SystemExit(1)
+
+    inference_result: RoleInferenceResult = infer_column_roles(intake_result.df)
+    print("Inferred assumptions (informative only):")
+    print(_format_role_candidates("  key", inference_result.key_candidates))
+    print(_format_role_candidates("  date", inference_result.date_candidates))
+    print(
+        _format_role_candidates(
+            "  numeric_measure", inference_result.numeric_measure_candidates
+        )
+    )
+    print(_format_role_candidates("  categorical", inference_result.categorical_candidates))
 
     profile = build_dataset_profile(df=intake_result.df, dataset_name=dataset_name)
 

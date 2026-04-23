@@ -1,0 +1,7 @@
+trade_id,trade_date,notional,instrument_type,counterparty,notes
+T001,2025-01-02,1000000,Swap,BankA,standard trade
+T002,2025-01-03,1250000,Forward,BankB,standard trade
+T003,2025-01-04,950000,Swap,BankA,roll trade
+T004,2025-01-05,1100000,Option,BankC,manual review
+T005,2025-01-06,1300000,Swap,BankA,manual review
+T006,2025-01-07,800000,Forward,BankB,late ticket

@@ -7,12 +7,13 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 4 baseline)
+## Current architecture (Stage 5 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
 - `src/intake.py`: deterministic intake (file-type awareness, suitability scoring, XLSX sheet ranking/selection).
 - `src/profiling.py`: dataset profiling and dataset naming.
+- `src/role_inference.py`: deterministic role inference and structured assumption generation.
 - `src/config.py`: deterministic check configuration loading.
 
 ### 2) Deterministic tool layer
@@ -46,7 +47,16 @@ Responsibilities:
 Output:
 - validated intake context for deterministic execution today and planner/executor later
 
-### Layer B: Deterministic tools (existing source of truth)
+### Layer B: Deterministic assumptions + tools (source of truth remains tools)
+Responsibilities:
+- infer likely column roles using deterministic heuristics
+- emit inspectable assumptions with confidence/provenance
+- keep check execution config-driven in deterministic mode
+
+Output:
+- assumption candidates that future confirmation/planning layers can consume
+
+### Layer C: Deterministic tools (existing source of truth)
 Responsibilities:
 - deterministic, reproducible checks
 - structured findings
@@ -54,7 +64,7 @@ Responsibilities:
 Output:
 - trustworthy findings that planner can inspect and reference
 
-### Layer C: Agent orchestration (future)
+### Layer D: Agent orchestration (future)
 Responsibilities:
 - rule-based planner/executor initially
 - track assumptions, confidence, confirmations/overrides
@@ -63,7 +73,7 @@ Responsibilities:
 Output:
 - action history + stop rationale + triage conclusions scaffold
 
-### Layer D: Reporting (split by mode)
+### Layer E: Reporting (split by mode)
 Responsibilities:
 - deterministic report path remains stable
 - agent mode eventually emits triage narrative output separately

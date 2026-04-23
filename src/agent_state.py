@@ -25,6 +25,9 @@ class AssumptionRecord:
     status: AssumptionStatus = "inferred"
     source: str = "rule"
     notes: str | None = None
+    role_type: str | None = None
+    column_name: str | None = None
+    evidence: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
