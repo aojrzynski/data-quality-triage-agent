@@ -19,7 +19,7 @@ Acceptance criteria:
 Acceptance criteria:
 - LLM summary is optional and layered on top of deterministic outputs
 
-## Milestone 3 — Agent-readiness structure (this stage)
+## Milestone 3 — Agent-readiness structure (completed)
 - add canonical scope/architecture/plan docs
 - add explicit CLI mode boundary (`deterministic` vs `agent`)
 - extract expected-result comparison from CLI
@@ -32,26 +32,35 @@ Acceptance criteria:
 - `--mode agent` is explicit and honestly not implemented
 - architecture supports future orchestration work without a rewrite
 
-## Milestone 4 — Rule-based intake and assumptions (planned)
+## Milestone 4 — Intake + sheet selection foundations (in progress)
 - tabular suitability checks
 - sheet/table selection heuristics
-- initial column-role inference scaffolding
-- assumption capture with confidence and status
+- structured intake outputs for future role inference/planning
 
 Acceptance criteria:
-- intake produces explicit assumptions
-- assumptions can be auto-accepted and surfaced for future confirmation flows
+- intake is explicit, deterministic, and testable
+- XLSX default sheet selection is stronger than sheet index 0
+- suitability signals are surfaced clearly before checks
 
-## Milestone 5 — Rule-based planner/executor (planned)
-- initial agent-mode action loop (rule-based, not LLM-first)
-- dynamic deterministic tool selection
-- action history + stop-condition handling
+## Milestone 5 — Role inference + assumptions (planned)
+- initial column-role inference
+- assumption capture (inferred vs confirmed vs overridden)
+- assumption surfacing for later confirmation UX
 
 Acceptance criteria:
-- agent mode runs a real, inspectable sequence of actions
+- role assumptions are explicit and inspectable
 - deterministic tools remain the source of truth for issue detection
 
-## Milestone 6 — Investigation and triage output (planned)
+## Milestone 6 — Rule-based planner/executor (planned)
+- initial agent-mode action loop (rule-based, not LLM-first)
+- dynamic deterministic tool selection
+- action history and stop-condition handling
+
+Acceptance criteria:
+- planner/executor behavior is inspectable and deterministic-first
+- agent mode runs a traceable sequence of actions over deterministic tools
+
+## Milestone 7 — Investigation and triage output (planned)
 - follow-up investigation actions
 - stop rationale and triage-style conclusions
 - separate triage narrative reporting path
@@ -59,7 +68,7 @@ Acceptance criteria:
 Acceptance criteria:
 - agent mode produces a clear triage conclusion with traceable action history
 
-## Milestone 7 — Optional human-in-the-loop + polish (planned)
+## Milestone 8 — Optional human-in-the-loop + polish (planned)
 - user confirmation/override for critical assumptions
 - optional LLM polish for summaries/plans (still non-authoritative)
 

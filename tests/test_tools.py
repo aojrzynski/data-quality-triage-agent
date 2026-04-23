@@ -1,3 +1,4 @@
+from src.checks import run_checks
 from src.config import load_agent_config
 from src.io import load_csv
 from src.scoring import score_findings
@@ -21,10 +22,22 @@ def test_run_deterministic_tools_matches_run_checks_for_clean_data() -> None:
     config = load_agent_config()
 
     findings = run_deterministic_tools(df, config=config)
+    canonical = run_checks(df, config=config)
     scored = score_findings(findings)
 
+    assert findings == canonical
     assert findings == []
     assert scored == []
+
+
+def test_run_deterministic_tools_matches_run_checks_for_broken_data() -> None:
+    df = load_csv("sample_data/broken/orders_nulls.csv")
+    config = load_agent_config()
+
+    findings = run_deterministic_tools(df, config=config)
+    canonical = run_checks(df, config=config)
+
+    assert findings == canonical
 
 
 def test_run_deterministic_tools_finds_known_issues() -> None:

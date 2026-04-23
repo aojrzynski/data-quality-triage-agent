@@ -4,6 +4,7 @@
 This repository is currently a **deterministic local data quality triage tool** with an optional LLM explanation layer.
 
 Today it can:
+- Run deterministic intake (file format awareness, tabular suitability assessment, XLSX sheet selection).
 - Load CSV and XLSX files locally via CLI.
 - Build a dataset profile.
 - Run deterministic checks (schema surprises, missing values, duplicate keys, unexpected categories, date gaps, numeric outliers).
