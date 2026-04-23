@@ -9,11 +9,12 @@ Why this module exists:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Literal
 
 import pandas as pd
 
 from src import checks
+from src.bindings import AgentExecutionBindings
 from src.models import AgentConfig, Finding
 
 
@@ -33,6 +34,15 @@ class Tool:
 
     spec: ToolSpec
     execute: Callable[[pd.DataFrame, AgentConfig], list[Finding]]
+
+
+@dataclass(frozen=True)
+class AgentToolExecutionResult:
+    """Execution outcome for one agent tool invocation."""
+
+    status: Literal["completed", "skipped"]
+    findings: list[Finding]
+    details: dict
 
 
 def _schema_surprises_tool(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
@@ -134,6 +144,7 @@ _DETERMINISTIC_TOOLS: tuple[Tool, ...] = (
     ),
 )
 
+
 def get_deterministic_tool(name: str) -> Tool:
     """Return one deterministic tool wrapper by name."""
     for tool in _DETERMINISTIC_TOOLS:
@@ -150,6 +161,89 @@ def execute_deterministic_tool(
     """Execute one deterministic tool by name."""
     tool = get_deterministic_tool(name)
     return tool.execute(df, config)
+
+
+def execute_agent_bound_tool(
+    name: str,
+    df: pd.DataFrame,
+    config: AgentConfig,
+    bindings: AgentExecutionBindings,
+) -> AgentToolExecutionResult:
+    """Execute one deterministic tool using resolved agent-mode bindings."""
+    if name in {"schema_surprises", "missing_values"}:
+        findings = execute_deterministic_tool(name, df, config)
+        return AgentToolExecutionResult(
+            status="completed",
+            findings=findings,
+            details={"binding_scope": "not_applicable"},
+        )
+
+    bound_columns = bindings.columns_for_tool(name)
+    source_map = bindings.source_map_for_tool(name)
+
+    if not bound_columns:
+        return AgentToolExecutionResult(
+            status="skipped",
+            findings=[],
+            details={
+                "binding_scope": "role_bound",
+                "bound_columns": [],
+                "binding_source_by_column": {},
+                "skip_reason": bindings.skipped_reason_for_tool(name)
+                or "No usable binding resolved for planned tool.",
+            },
+        )
+
+    findings: list[Finding] = []
+    details = {
+        "binding_scope": "role_bound",
+        "bound_columns": list(bound_columns),
+        "binding_source_by_column": dict(source_map),
+    }
+
+    if name == "duplicate_keys":
+        for column in bound_columns:
+            findings.extend(checks.check_duplicate_keys(df, key_column=column))
+    elif name == "date_gaps":
+        for column in bound_columns:
+            findings.extend(checks.check_date_gaps(df, column=column))
+    elif name == "numeric_outliers":
+        for column in bound_columns:
+            findings.extend(checks.check_numeric_outliers(df, column=column))
+    elif name == "unexpected_categorical_values":
+        skipped_columns: list[dict[str, str]] = []
+        for column in bound_columns:
+            if column in config.categorical_rules:
+                findings.extend(
+                    checks.check_unexpected_categorical_values(
+                        df,
+                        column=column,
+                        allowed_values=set(config.categorical_rules[column]),
+                    )
+                )
+            else:
+                skipped_columns.append(
+                    {
+                        "column": column,
+                        "reason": "No configured categorical rule set for selected column.",
+                    }
+                )
+        if skipped_columns:
+            details["skipped_columns"] = skipped_columns
+            if len(skipped_columns) == len(bound_columns):
+                return AgentToolExecutionResult(
+                    status="skipped",
+                    findings=[],
+                    details={
+                        **details,
+                        "skip_reason": "No configured categorical rule set for any bound categorical column.",
+                    },
+                )
+    else:
+        raise ValueError(f"Unknown deterministic tool: {name}")
+
+    details["finding_count"] = len(findings)
+    return AgentToolExecutionResult(status="completed", findings=findings, details=details)
 
 
 def list_deterministic_tools() -> tuple[ToolSpec, ...]:

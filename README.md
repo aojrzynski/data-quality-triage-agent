@@ -28,7 +28,7 @@ Agent mode now runs a first deterministic, rule-based planner/executor:
 python -m src.cli --input sample_data/clean/orders_clean.csv --mode agent
 ```
 
-Agent mode plans which deterministic tools to execute, runs them in sequence, and writes an inspectable trace artifact.
+Agent mode plans which deterministic tools to execute, resolves role-to-tool column bindings (override -> inferred -> config fallback), runs tools against those resolved bindings, and writes an inspectable trace artifact.
 
 ## Outputs
 The CLI writes files into `outputs/`:
@@ -64,10 +64,14 @@ python -m src.cli \
 - This output is currently informative only: deterministic checks are still driven by config.
 
 
-## Agent mode behavior (Stage 6)
+## Agent mode behavior (Stage 7)
 - Runs intake and role inference first.
 - Builds a rule-based plan that always starts with schema/completeness checks, then conditionally adds role-driven tool families.
 - Executes selected deterministic tools through the tool layer.
 - Records planned/executed actions and explicit stop rationale.
 - Produces a structured `*_agent_trace.json` execution trace.
 - Still does **not** implement investigation tools, human confirmations, or full triage narrative output.
+
+- Optional non-interactive agent overrides are available in agent mode only: `--agent-key-columns`, `--agent-date-columns`, `--agent-numeric-columns`, `--agent-categorical-columns`.
+- Categorical validation in agent mode still requires configured rule sets per selected column; columns without rules are explicitly skipped and traced.
+- Deterministic mode remains config-driven and rejects agent-only override flags.
