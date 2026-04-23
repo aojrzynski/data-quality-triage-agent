@@ -79,3 +79,21 @@ def test_xlsx_explicit_sheet_is_respected(tmp_path: Path) -> None:
     assert result.selection_mode == "explicit"
     assert result.selected_sheet_name == "Cover"
     assert result.selected_candidate.candidate_id == "Cover"
+
+
+def test_xlsx_explicit_sheet_index_surfaces_resolved_name(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "explicit_index.xlsx"
+
+    with pd.ExcelWriter(workbook_path) as writer:
+        pd.DataFrame({"cover": [None, None]}).to_excel(writer, sheet_name="Cover", index=False)
+        pd.DataFrame({"order_id": [1, 2], "amount": [10, 20]}).to_excel(
+            writer,
+            sheet_name="Orders",
+            index=False,
+        )
+
+    result = inspect_and_select_dataset(workbook_path, sheet_name=1)
+
+    assert result.selection_mode == "explicit"
+    assert result.selected_sheet_name == "Orders"
+    assert result.selected_candidate.candidate_id == "Orders"

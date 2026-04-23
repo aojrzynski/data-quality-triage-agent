@@ -5,6 +5,7 @@ This repository is currently a **deterministic local data quality triage tool** 
 
 Today it can:
 - Run deterministic intake (file format awareness, tabular suitability assessment, XLSX sheet selection).
+- Run deterministic role inference to produce structured assumptions (key/date/numeric/categorical candidates with confidence/provenance).
 - Load CSV and XLSX files locally via CLI.
 - Build a dataset profile.
 - Run deterministic checks (schema surprises, missing values, duplicate keys, unexpected categories, date gaps, numeric outliers).
@@ -24,6 +25,7 @@ Deterministic mode means:
 - Static, predictable check execution.
 - Config-driven rules and deterministic findings.
 - No autonomous planning loop.
+- Role assumptions are inferred and surfaced, but not yet user-confirmed/overridden.
 - Same behavior for the same input/config.
 
 This mode is intended to remain stable and backward compatible.

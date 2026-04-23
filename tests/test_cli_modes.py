@@ -76,6 +76,8 @@ def test_cli_surfaces_auto_selected_sheet(
     assert "Intake sheet selection: auto" in captured.out
     assert "Selected sheet: Orders" in captured.out
     assert "Suitability:" in captured.out
+    assert "Inferred assumptions (informative only):" in captured.out
+    assert "numeric_measure:" in captured.out
 
 
 def test_cli_hard_failure_stops_before_outputs(
@@ -110,3 +112,39 @@ def test_cli_hard_failure_stops_before_outputs(
     assert "Markdown output:" not in captured.out
 
     assert not output_dir.exists()
+
+
+def test_cli_explicit_sheet_index_prints_resolved_sheet_name(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    workbook_path = tmp_path / "explicit_index.xlsx"
+
+    with pd.ExcelWriter(workbook_path) as writer:
+        pd.DataFrame({"cover": [None, None]}).to_excel(writer, sheet_name="Cover", index=False)
+        pd.DataFrame({"order_id": [1, 2, 3], "amount": [10, 20, 30]}).to_excel(
+            writer,
+            sheet_name="Orders",
+            index=False,
+        )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            str(workbook_path),
+            "--sheet",
+            "1",
+            "--output-dir",
+            str(tmp_path / "outputs"),
+        ],
+    )
+
+    cli.main()
+    captured = capsys.readouterr()
+
+    assert "Intake sheet selection: explicit" in captured.out
+    assert "Selected sheet: Orders" in captured.out

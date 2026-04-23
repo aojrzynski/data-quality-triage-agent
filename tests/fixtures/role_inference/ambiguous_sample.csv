@@ -1,0 +1,6 @@
+reference,snapshot_dt,amount,value,description,desk
+R-100,2026-02-01,10.5,110.0,First synthetic sentence alpha,North
+R-101,2026-02-02,11.5,120.0,Second synthetic sentence beta,South
+R-102,not-a-date,12.0,115.5,Third synthetic sentence gamma,North
+R-103,2026-02-04,13.0,118.0,Fourth synthetic sentence delta,East
+R-104,2026-02-05,14.0,119.5,Fifth synthetic sentence epsilon,South

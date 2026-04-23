@@ -211,7 +211,13 @@ def inspect_and_select_dataset(path: str | Path, sheet_name: str | int | None = 
 
     if sheet_name is not None:
         explicit_df = load_excel(input_path, sheet_name=sheet_name)
+
         explicit_name = str(sheet_name)
+        if isinstance(sheet_name, int):
+            sheet_names = list_excel_sheets(input_path)
+            if 0 <= sheet_name < len(sheet_names):
+                explicit_name = sheet_names[sheet_name]
+
         candidate = _build_candidate(candidate_id=explicit_name, df=explicit_df)
         return IntakeResult(
             file_type="xlsx",

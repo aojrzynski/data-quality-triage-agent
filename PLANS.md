@@ -32,7 +32,7 @@ Acceptance criteria:
 - `--mode agent` is explicit and honestly not implemented
 - architecture supports future orchestration work without a rewrite
 
-## Milestone 4 — Intake + sheet selection foundations (in progress)
+## Milestone 4 — Intake + sheet selection foundations (completed)
 - tabular suitability checks
 - sheet/table selection heuristics
 - structured intake outputs for future role inference/planning
@@ -42,10 +42,11 @@ Acceptance criteria:
 - XLSX default sheet selection is stronger than sheet index 0
 - suitability signals are surfaced clearly before checks
 
-## Milestone 5 — Role inference + assumptions (planned)
-- initial column-role inference
-- assumption capture (inferred vs confirmed vs overridden)
-- assumption surfacing for later confirmation UX
+## Milestone 5 — Role inference + assumptions (in progress)
+- deterministic, rule-based inference for key/date/numeric/categorical candidates
+- structured assumption objects with confidence, provenance, and status
+- CLI surfacing of inferred assumptions before checks
+- assumption capture scaffold for inferred vs confirmed vs overridden
 
 Acceptance criteria:
 - role assumptions are explicit and inspectable

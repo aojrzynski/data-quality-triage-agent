@@ -3,7 +3,7 @@
 A local Python CLI project for data quality triage.
 
 ## What it is today
-The current implementation is a **deterministic data quality triage tool** with an explicit intake stage (tabular suitability + sheet selection) and optional LLM-written summary support.
+The current implementation is a **deterministic data quality triage tool** with an explicit intake stage (tabular suitability + sheet selection), deterministic role inference/assumption generation, and optional LLM-written summary support.
 
 ## Where it's going
 The target is a genuine **Data Quality Triage Agent** with a separate agent mode layered on top of deterministic checks.
@@ -53,3 +53,10 @@ python -m src.cli \
 - XLSX inputs auto-rank sheets when `--sheet` is omitted, then select the strongest tabular candidate.
 - Intake reports suitability (`suitable|borderline|unsuitable`) with score and warnings in CLI output.
 - Suitability is heuristic and intentionally limited (no OCR, no full spreadsheet semantics).
+
+
+## Role inference behavior (Stage 5)
+- Deterministic mode now performs rule-based column role inference after intake and before checks.
+- Inferred assumptions include likely `key`, `date`, `numeric_measure`, and `categorical` columns.
+- Each inferred assumption carries confidence + provenance and is marked as `inferred`.
+- This output is currently informative only: deterministic checks are still driven by config.
