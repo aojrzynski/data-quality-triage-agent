@@ -26,23 +26,36 @@ def test_parse_args_accepts_explicit_deterministic_mode(
     assert args.mode == "deterministic"
 
 
-def test_agent_mode_is_explicitly_not_implemented(
+def test_agent_mode_runs_and_emits_trace(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
+    output_dir = tmp_path / "outputs"
     monkeypatch.setattr(
         sys,
         "argv",
-        ["prog", "--input", "sample_data/clean/orders_clean.csv", "--mode", "agent"],
+        [
+            "prog",
+            "--input",
+            "sample_data/clean/orders_clean.csv",
+            "--mode",
+            "agent",
+            "--output-dir",
+            str(output_dir),
+        ],
     )
 
-    with pytest.raises(SystemExit) as exc:
-        cli.main()
+    cli.main()
 
-    assert exc.value.code == 2
     captured = capsys.readouterr()
-    assert "Agent mode is not implemented yet." in captured.out
-    assert "Use --mode deterministic" in captured.out
+    assert "Mode: agent" in captured.out
+    assert "Planned actions" in captured.out
+    assert "Completed actions" in captured.out
+    assert "Stop reason:" in captured.out
+
+    trace_path = output_dir / "orders_clean_agent_trace.json"
+    assert trace_path.exists()
 
 
 def test_cli_surfaces_auto_selected_sheet(
@@ -112,6 +125,39 @@ def test_cli_hard_failure_stops_before_outputs(
     assert "Markdown output:" not in captured.out
 
     assert not output_dir.exists()
+
+
+def test_agent_mode_hard_failure_stops_with_trace(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "tests/fixtures/intake/empty_columns.csv",
+            "--mode",
+            "agent",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Mode: agent" in captured.out
+    assert "Stop reason: INTAKE_HARD_FAILURE" in captured.out
+
+    trace_path = output_dir / "empty_columns_agent_trace.json"
+    assert trace_path.exists()
 
 
 def test_cli_explicit_sheet_index_prints_resolved_sheet_name(

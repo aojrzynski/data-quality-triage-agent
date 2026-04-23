@@ -7,7 +7,7 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 5 baseline)
+## Current architecture (Stage 6 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
@@ -24,8 +24,10 @@ The design principle is incremental evolution: preserve deterministic reliabilit
 ### 3) Orchestration / execution boundary
 - `src/cli.py`:
   - explicit mode boundary via `--mode deterministic|agent`
-  - deterministic execution path remains current stable behavior
-  - agent mode currently returns not-implemented (honest boundary, no fallback)
+  - deterministic execution path remains stable
+  - agent mode now runs rule-based planning/execution and surfaces trace details
+- `src/planner.py`: rule-based selection of deterministic tool sequence.
+- `src/agent_runner.py`: executor loop + action history + stop rationale + trace artifact.
 
 ### 4) Reporting and output layer
 - `src/reporting.py`: deterministic Markdown report generation.

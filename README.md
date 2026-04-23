@@ -22,16 +22,18 @@ python -m src.cli --input sample_data/clean/orders_clean.xlsx --sheet Sheet1
 python -m src.cli --input sample_data/clean/orders_clean.csv --mode deterministic
 ```
 
-Agent mode boundary exists but is not implemented yet:
+Agent mode now runs a first deterministic, rule-based planner/executor:
 
 ```bash
 python -m src.cli --input sample_data/clean/orders_clean.csv --mode agent
 ```
 
+Agent mode plans which deterministic tools to execute, runs them in sequence, and writes an inspectable trace artifact.
+
 ## Outputs
 The CLI writes files into `outputs/`:
-- `*_profile.json`
-- `*_report.md`
+- Deterministic mode: `*_profile.json`, `*_report.md`
+- Agent mode: `*_agent_trace.json`
 
 ## Optional LLM summary
 You can optionally generate an LLM-written summary on top of deterministic findings.
@@ -60,3 +62,12 @@ python -m src.cli \
 - Inferred assumptions include likely `key`, `date`, `numeric_measure`, and `categorical` columns.
 - Each inferred assumption carries confidence + provenance and is marked as `inferred`.
 - This output is currently informative only: deterministic checks are still driven by config.
+
+
+## Agent mode behavior (Stage 6)
+- Runs intake and role inference first.
+- Builds a rule-based plan that always starts with schema/completeness checks, then conditionally adds role-driven tool families.
+- Executes selected deterministic tools through the tool layer.
+- Records planned/executed actions and explicit stop rationale.
+- Produces a structured `*_agent_trace.json` execution trace.
+- Still does **not** implement investigation tools, human confirmations, or full triage narrative output.
