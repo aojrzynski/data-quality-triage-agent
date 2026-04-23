@@ -29,6 +29,17 @@ def load_excel(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
     return pd.read_excel(excel_path, sheet_name=sheet_name)
 
 
+def list_excel_sheets(path: str | Path) -> list[str]:
+    """List worksheet names in an Excel workbook."""
+    excel_path = Path(path)
+
+    if not excel_path.exists():
+        raise FileNotFoundError(f"Excel file not found: {excel_path}")
+
+    workbook = pd.ExcelFile(excel_path)
+    return [str(name) for name in workbook.sheet_names]
+
+
 def load_dataset(path: str | Path, sheet_name: str | int = 0) -> pd.DataFrame:
     """Load a supported dataset file based on its extension.
 

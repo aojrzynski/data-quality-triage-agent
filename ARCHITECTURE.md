@@ -7,10 +7,11 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 3 baseline)
+## Current architecture (Stage 4 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
+- `src/intake.py`: deterministic intake (file-type awareness, suitability scoring, XLSX sheet ranking/selection).
 - `src/profiling.py`: dataset profiling and dataset naming.
 - `src/config.py`: deterministic check configuration loading.
 
@@ -36,13 +37,14 @@ The design principle is incremental evolution: preserve deterministic reliabilit
 
 ## Target architecture (incremental)
 
-### Layer A: Intake + suitability (future)
+### Layer A: Intake + suitability (implemented foundation)
 Responsibilities:
 - detect whether input is tabular and suitable for deterministic tools
 - choose sheet/table where relevant
+- return structured candidate summaries for future agent assumptions/planning
 
 Output:
-- validated intake context for planner/executor
+- validated intake context for deterministic execution today and planner/executor later
 
 ### Layer B: Deterministic tools (existing source of truth)
 Responsibilities:

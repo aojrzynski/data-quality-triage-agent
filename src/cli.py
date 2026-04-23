@@ -8,7 +8,8 @@ from pathlib import Path
 from src.checks import run_checks
 from src.config import load_agent_config
 from src.expected_validation import compare_to_expected
-from src.io import load_dataset, load_json, save_json, save_markdown
+from src.intake import inspect_and_select_dataset
+from src.io import load_json, save_json, save_markdown
 from src.llm_summary import generate_llm_summary
 from src.models import RunResult
 from src.profiling import build_dataset_profile, dataset_name_from_path
@@ -29,8 +30,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--sheet",
-        default="0",
-        help="Excel sheet name or sheet index (used only for .xlsx files). Default is 0.",
+        default=None,
+        help=(
+            "Excel sheet name or index (used only for .xlsx files). "
+            "If omitted, intake auto-selects the best sheet."
+        ),
     )
     parser.add_argument(
         "--mode",
@@ -65,19 +69,42 @@ def main() -> None:
     input_path = Path(args.input)
     output_dir = Path(args.output_dir)
 
-    sheet_arg: str | int
-    if args.sheet.isdigit():
+    sheet_arg: str | int | None
+    if args.sheet is None:
+        sheet_arg = None
+    elif str(args.sheet).isdigit():
         sheet_arg = int(args.sheet)
     else:
-        sheet_arg = args.sheet
+        sheet_arg = str(args.sheet)
 
     dataset_name = dataset_name_from_path(input_path)
     config = load_agent_config(args.config)
 
-    df = load_dataset(input_path, sheet_name=sheet_arg)
-    profile = build_dataset_profile(df=df, dataset_name=dataset_name)
+    intake_result = inspect_and_select_dataset(input_path, sheet_name=sheet_arg)
+    suitability = intake_result.selected_candidate.suitability
 
-    findings = run_checks(df, config=config)
+    print("Data Quality Triage Agent")
+    print(f"Mode: {args.mode}")
+    print(f"Loaded dataset: {dataset_name}")
+    print(f"Intake file type: {intake_result.file_type}")
+    if intake_result.file_type == "xlsx":
+        print(f"Intake sheet selection: {intake_result.selection_mode}")
+        print(f"Selected sheet: {intake_result.selected_sheet_name}")
+    print(f"Suitability: {suitability.status} (score={suitability.score})")
+
+    for reason in suitability.reasons:
+        print(f"Intake reason: {reason}")
+    for warning in suitability.warnings:
+        print(f"Intake warning: {warning}")
+
+    if suitability.hard_failure:
+        print("Input is unsuitable for deterministic checks; stopping before profiling/checks.")
+        print(f"Recommended action: {suitability.recommended_action}")
+        raise SystemExit(1)
+
+    profile = build_dataset_profile(df=intake_result.df, dataset_name=dataset_name)
+
+    findings = run_checks(intake_result.df, config=config)
     scored_findings = score_findings(findings)
 
     run_result = RunResult(
@@ -100,9 +127,6 @@ def main() -> None:
         llm_summary_path = output_dir / f"{input_path.stem}_llm_summary.md"
         save_markdown(llm_summary_path, llm_summary)
 
-    print("Data Quality Triage Agent")
-    print(f"Mode: {args.mode}")
-    print(f"Loaded dataset: {dataset_name}")
     print(f"Config: {args.config}")
     print(f"Rows: {profile.row_count}")
     print(f"Columns: {profile.column_count}")

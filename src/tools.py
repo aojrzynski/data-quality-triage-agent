@@ -141,8 +141,8 @@ def list_deterministic_tools() -> tuple[ToolSpec, ...]:
 
 
 def run_deterministic_tools(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
-    """Run deterministic tools in the existing stable order."""
-    findings: list[Finding] = []
-    for tool in _DETERMINISTIC_TOOLS:
-        findings.extend(tool.execute(df, config))
-    return findings
+    """Run deterministic tools via the canonical deterministic check pipeline.
+
+    This keeps the tool facade behavior aligned with `run_checks(...)`.
+    """
+    return checks.run_checks(df, config=config)
