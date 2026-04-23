@@ -223,6 +223,9 @@ def test_agent_mode_cli_accepts_override_flags(
     cli.main()
     captured = capsys.readouterr()
     assert "Mode: agent" in captured.out
+    assert "Resolved bindings used:" in captured.out
+    assert "key: trade_id (user_override)" in captured.out
+    assert "date: trade_date (user_override)" in captured.out
 
 
 def test_deterministic_mode_rejects_agent_override_flags(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -175,6 +175,7 @@ def run_agent_mode(
         intake_result=intake_result,
         inference_result=inference_result,
         config=config,
+        bindings=bindings,
     )
 
     if not plan_result.actions:

@@ -88,6 +88,22 @@ def _format_role_candidates(label: str, candidates: list) -> str:
     return f"{label}: {rendered}"
 
 
+def _format_resolved_binding(role: str, binding: dict) -> str:
+    columns = binding.get("columns", [])
+    source_by_column = binding.get("source_by_column", {})
+    skipped_reason = binding.get("skipped_reason")
+
+    if not columns:
+        if skipped_reason:
+            return f"  - {role}: none ({skipped_reason})"
+        return f"  - {role}: none"
+
+    rendered = ", ".join(
+        f"{column} ({source_by_column.get(column, 'unknown')})" for column in columns
+    )
+    return f"  - {role}: {rendered}"
+
+
 def _resolve_sheet_arg(sheet: str | None) -> str | int | None:
     if sheet is None:
         return None
@@ -224,6 +240,13 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
         )
     )
     print(_format_role_candidates("  categorical", result.inference_result.categorical_candidates))
+
+    resolved = result.state.context.get("resolved_bindings", {})
+    print("Resolved bindings used:")
+    print(_format_resolved_binding("key", resolved.get("key", {})))
+    print(_format_resolved_binding("date", resolved.get("date", {})))
+    print(_format_resolved_binding("numeric", resolved.get("numeric", {})))
+    print(_format_resolved_binding("categorical", resolved.get("categorical", {})))
 
     planned_tool_names = [action.tool_name for action in result.plan_result.actions]
     print(f"Planned actions ({len(planned_tool_names)}): {', '.join(planned_tool_names) if planned_tool_names else 'none'}")
