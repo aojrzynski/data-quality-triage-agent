@@ -249,4 +249,54 @@ def test_deterministic_mode_rejects_agent_override_flags(monkeypatch: pytest.Mon
     with pytest.raises(SystemExit) as exc:
         cli.main()
 
-    assert "Agent-only override flags" in str(exc.value)
+    assert "Agent-only flags" in str(exc.value)
+
+
+def test_deterministic_mode_rejects_confirm_assumptions_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "sample_data/clean/orders_clean.csv",
+            "--confirm-assumptions",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+
+    assert "Agent-only flags" in str(exc.value)
+
+
+def test_agent_mode_confirm_assumptions_prompts_and_prints_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    responses = iter(["", "", "", ""])
+    monkeypatch.setattr("builtins.input", lambda _msg="": next(responses))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "tests/fixtures/role_inference/trades_stage7.csv",
+            "--mode",
+            "agent",
+            "--output-dir",
+            str(output_dir),
+            "--confirm-assumptions",
+        ],
+    )
+
+    cli.main()
+    captured = capsys.readouterr()
+    assert "Assumption confirmation (agent mode)" in captured.out
+    assert "Assumption confirmation summary:" in captured.out
+    assert "key: user_confirmed" in captured.out

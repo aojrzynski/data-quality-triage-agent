@@ -252,3 +252,75 @@ def test_agent_skips_role_bound_tool_when_no_binding_available(tmp_path: Path) -
         for reason in result.plan_result.rationale
     )
     assert all(action.action_name != "date_gaps" for action in result.state.actions)
+
+
+def test_confirm_assumptions_accepts_defaults_and_marks_user_confirmed(tmp_path: Path) -> None:
+    prompts = iter(["", "", "", ""])
+    result = run_agent_mode(
+        input_path="tests/fixtures/role_inference/trades_stage7.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        confirm_assumptions=True,
+        prompt_fn=lambda _msg: next(prompts),
+        display_fn=lambda _msg: None,
+    )
+
+    review = result.state.context["assumption_review"]
+    assert review["enabled"] is True
+    assert review["role_resolution"]["key"] == "user_confirmed"
+    assert review["role_resolution"]["date"] == "user_confirmed"
+    assert any(assumption.status == "user_confirmed" for assumption in result.state.assumptions)
+
+    date_action = next(action for action in result.state.actions if action.action_name == "date_gaps")
+    assert "trade_date" in date_action.details["bound_columns"]
+
+
+def test_confirm_assumptions_supports_override_and_clear(tmp_path: Path) -> None:
+    prompts = iter(["counterparty", "none", "", "instrument_type"])
+    result = run_agent_mode(
+        input_path="tests/fixtures/role_inference/trades_stage7.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        confirm_assumptions=True,
+        prompt_fn=lambda _msg: next(prompts),
+        display_fn=lambda _msg: None,
+    )
+
+    resolved = result.state.context["resolved_bindings"]
+    assert resolved["key"]["columns"] == ["counterparty"]
+    assert resolved["date"]["columns"] == []
+    assert resolved["date"]["skipped_reason"] == "Binding was explicitly cleared by user override."
+    assert resolved["categorical"]["columns"] == ["instrument_type"]
+    assert result.state.context["assumption_review"]["role_resolution"]["date"] == "user_overridden"
+
+    planned_tools = [action.tool_name for action in result.plan_result.actions]
+    assert "date_gaps" not in planned_tools
+
+
+def test_cli_overrides_take_precedence_over_interactive_confirmation(tmp_path: Path) -> None:
+    prompts = iter(["trade_id", "none", "none", "none"])
+    result = run_agent_mode(
+        input_path="tests/fixtures/role_inference/trades_stage7.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        agent_key_columns="trade_id",
+        confirm_assumptions=True,
+        prompt_fn=lambda _msg: next(prompts),
+        display_fn=lambda _msg: None,
+    )
+
+    review = result.state.context["assumption_review"]
+    assert review["role_resolution"]["key"] == "user_overridden"
+    assert review["review_notes"]["key"] == "locked_by_cli_override"
+    assert result.state.context["resolved_bindings"]["key"]["columns"] == ["trade_id"]
+
+
+def test_action_details_include_columns_with_findings(tmp_path: Path) -> None:
+    result = run_agent_mode(
+        input_path="sample_data/broken/orders_duplicate_keys.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+    )
+    duplicate_action = next(action for action in result.state.actions if action.action_name == "duplicate_keys")
+    assert "columns_with_findings" in duplicate_action.details
+    assert "finding_count_by_column" in duplicate_action.details

@@ -30,17 +30,19 @@ Deterministic mode means:
 
 This mode is intended to remain stable and backward compatible.
 
-### Agent mode (Stage 8 implementation)
+### Agent mode (Stage 9 implementation)
 Agent mode currently means:
 - Explicit orchestration/planning steps (rule-based planner/executor).
 - Assumption tracking (inferred assumptions recorded in run state).
-- Assumption-driven role-to-tool binding resolution (override -> inferred -> config fallback).
+- Assumption-driven role-to-tool binding resolution (CLI override -> interactive confirmation/override -> inferred -> config fallback).
+- Optional human-in-the-loop assumption confirmation (`--confirm-assumptions`) before planning/execution.
+- Explicit assumption statuses used in state/trace/report: `inferred`, `auto_accepted`, `user_confirmed`, `user_overridden`.
 - Dynamic deterministic tool invocation against resolved columns, with inspectable action history.
 - Bounded second-pass investigation actions triggered from deterministic findings.
 - Deterministic triage summary generation and markdown report artifact output.
 - Explicit stop conditions and stop rationale capture.
 - Categorical validation only where selected columns have configured categorical rule sets; otherwise actions are explicitly skipped and traced.
-- Future work: interactive confirmation and deeper adaptive replanning.
+- Future work: deeper adaptive replanning and broader UX refinement.
 
 ## In scope
 - Local-first operation.

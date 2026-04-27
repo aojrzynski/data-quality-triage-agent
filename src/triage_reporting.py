@@ -110,6 +110,7 @@ def build_agent_markdown_report(
     action_history: list[ActionRecord],
     findings: list[Finding],
     triage: TriageConclusion,
+    assumption_review: dict[str, Any] | None = None,
 ) -> str:
     lines = [
         "# Agent Triage Report",
@@ -149,6 +150,18 @@ def build_agent_markdown_report(
     lines.append(f"- Planned: {', '.join(planned_action_names) if planned_action_names else 'none'}")
     completed = [f"{action.action_name} ({action.status})" for action in action_history]
     lines.append(f"- Executed: {', '.join(completed) if completed else 'none'}")
+    for action in action_history:
+        details = action.details
+        if not isinstance(details, dict):
+            continue
+        bound_columns = details.get("bound_columns")
+        if bound_columns is not None:
+            lines.append(f"  - {action.action_name} checked columns: {', '.join(bound_columns) if bound_columns else 'none'}")
+        finding_columns = details.get("columns_with_findings")
+        if finding_columns is not None:
+            lines.append(
+                f"  - {action.action_name} columns with findings: {', '.join(finding_columns) if finding_columns else 'none'}"
+            )
 
     lines.extend(["", "## Main findings"])
     lines.append(f"- Total findings: {len(findings)}")
@@ -181,6 +194,12 @@ def build_agent_markdown_report(
     lines.extend(["", "## Suggested next steps"])
     for step in triage.recommended_next_steps:
         lines.append(f"- {step}")
+
+    if assumption_review:
+        lines.extend(["", "## Assumption review"])
+        lines.append(f"- Enabled: {assumption_review.get('enabled')}")
+        for role, decision in assumption_review.get("role_resolution", {}).items():
+            lines.append(f"- {role}: {decision}")
 
     lines.append("")
     return "\n".join(lines)

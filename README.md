@@ -64,15 +64,20 @@ python -m src.cli \
 - This output is currently informative only: deterministic checks are still driven by config.
 
 
-## Agent mode behavior (Stage 8)
+## Agent mode behavior (Stage 9)
 - Runs intake and role inference first.
 - Builds a rule-based plan that always starts with schema/completeness checks, then conditionally adds role-driven tool families.
 - Executes selected deterministic tools through the tool layer.
 - Records planned/executed actions and explicit stop rationale.
 - Performs bounded second-pass investigations for duplicate keys, numeric outliers, unexpected categorical values, and high-severity missing values.
 - Produces a structured `*_agent_trace.json` execution trace and `*_agent_report.md` triage summary.
-- Still does **not** implement human confirmation prompts or deep adaptive replanning.
+- Implements optional human confirmation prompts; still does **not** implement deep adaptive replanning.
 
 - Optional non-interactive agent overrides are available in agent mode only: `--agent-key-columns`, `--agent-date-columns`, `--agent-numeric-columns`, `--agent-categorical-columns`.
+- Optional interactive assumption confirmation is available in agent mode via `--confirm-assumptions`.
+  - Prompt flow is per role (`key`, `date`, `numeric`, `categorical`).
+  - Enter accepts proposal, comma-separated columns override, and `none` clears the role binding.
+  - Binding precedence is deterministic and explicit: CLI override flags > interactive confirmation > inference > config fallback.
 - Categorical validation in agent mode still requires configured rule sets per selected column; columns without rules are explicitly skipped and traced.
 - Deterministic mode remains config-driven and rejects agent-only override flags.
+- Trace/report now include clearer per-action binding evidence, including checked columns and which bound columns actually produced findings.

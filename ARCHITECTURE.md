@@ -7,7 +7,7 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 8 baseline)
+## Current architecture (Stage 9 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
@@ -25,10 +25,10 @@ The design principle is incremental evolution: preserve deterministic reliabilit
 - `src/cli.py`:
   - explicit mode boundary via `--mode deterministic|agent`
   - deterministic execution path remains stable
-  - agent mode now runs rule-based planning/execution and surfaces trace details
+  - agent mode runs rule-based planning/execution and optional interactive assumption confirmation (`--confirm-assumptions`)
 - `src/planner.py`: rule-based selection of deterministic tool sequence.
-- `src/bindings.py`: explicit assumption-to-tool binding resolution (override/inferred/config fallback).
-- `src/agent_runner.py`: executor loop + resolved bindings + action history + bounded investigation pass + stop rationale + trace/report artifacts.
+- `src/bindings.py`: explicit assumption-to-tool binding resolution (CLI override/interactively confirmed override/inferred/config fallback).
+- `src/agent_runner.py`: executor loop + optional assumption confirmation + resolved bindings + status propagation + action history + bounded investigation pass + stop rationale + trace/report artifacts.
 - `src/investigation_tools.py`: deterministic follow-up investigation helpers for key finding families.
 
 ### 4) Reporting and output layer
@@ -72,7 +72,8 @@ Output:
 Responsibilities:
 - rule-based planner/executor
 - resolve and record role-to-tool bindings before execution
-- track assumptions, confidence, and non-interactive overrides
+- track assumptions, confidence, and status transitions (`inferred`, `auto_accepted`, `user_confirmed`, `user_overridden`)
+- optionally collect per-role user confirmation/override via CLI prompt
 - choose which tools to run and when to stop
 - trigger bounded second-pass investigations from deterministic findings
 

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from src.agent_state import ActionRecord, AgentRunState, StopRationale
+from src.agent_state import ActionRecord, AgentRunState, AssumptionRecord, StopRationale
 from src.bindings import parse_column_override, resolve_agent_execution_bindings
 from src.config import load_agent_config
 from src.intake import IntakeResult, inspect_and_select_dataset
@@ -25,6 +25,8 @@ from src.role_inference import RoleInferenceResult, infer_column_roles
 from src.scoring import score_findings
 from src.tools import execute_agent_bound_tool
 from src.triage_reporting import build_agent_markdown_report, build_triage_conclusion
+
+RoleName = str
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,7 @@ def _build_trace_payload(result: AgentRunResult) -> dict:
             ],
         },
         "resolved_bindings": result.state.context.get("resolved_bindings", {}),
+        "assumption_review": result.state.context.get("assumption_review", {}),
         "executed_actions": [_action_to_dict(action) for action in result.state.actions],
         "investigations": result.state.context.get("investigation_results", []),
         "stop_rationale": _stop_to_dict(result.state.stop_rationale),
@@ -177,6 +180,74 @@ def _execute_investigation(df, finding: Finding) -> InvestigationResult | None:
     return None
 
 
+def _parse_review_input(raw: str) -> list[str] | None:
+    normalized = raw.strip()
+    if not normalized:
+        return None
+    if normalized.lower() == "none":
+        return []
+    return [token.strip() for token in normalized.split(",") if token.strip()]
+
+
+def _set_assumption_statuses(
+    state: AgentRunState,
+    bindings,
+    role_resolution: dict[RoleName, str],
+) -> None:
+    role_type_mapping = {
+        "key": "key",
+        "date": "date",
+        "numeric": "numeric_measure",
+        "categorical": "categorical",
+    }
+
+    assumption_index = {
+        (assumption.role_type, assumption.column_name): assumption for assumption in state.assumptions
+    }
+
+    for role, resolution in role_resolution.items():
+        role_type = role_type_mapping[role]
+        role_binding = getattr(bindings, role)
+        bound_columns = role_binding.columns
+
+        if resolution == "auto_accepted":
+            for column in bound_columns:
+                assumption = assumption_index.get((role_type, column))
+                if assumption is not None:
+                    assumption.status = "auto_accepted"
+            continue
+
+        if resolution == "user_confirmed":
+            for column in bound_columns:
+                assumption = assumption_index.get((role_type, column))
+                if assumption is not None:
+                    assumption.status = "user_confirmed"
+            continue
+
+        if resolution == "user_overridden":
+            for assumption in state.assumptions:
+                if assumption.role_type == role_type:
+                    assumption.status = "user_overridden"
+            for column in bound_columns:
+                assumption = assumption_index.get((role_type, column))
+                if assumption is not None:
+                    assumption.status = "user_overridden"
+                    continue
+                state.assumptions.append(
+                    AssumptionRecord(
+                        key=f"{role_type}:{column}",
+                        value=True,
+                        confidence=None,
+                        status="user_overridden",
+                        source="user_input",
+                        notes="User provided override during assumption confirmation.",
+                        role_type=role_type,
+                        column_name=column,
+                        evidence={},
+                    )
+                )
+
+
 def run_agent_mode(
     input_path: str | Path,
     output_dir: str | Path,
@@ -186,8 +257,16 @@ def run_agent_mode(
     agent_date_columns: str | None = None,
     agent_numeric_columns: str | None = None,
     agent_categorical_columns: str | None = None,
+    confirm_assumptions: bool = False,
+    prompt_fn=None,
+    display_fn=None,
 ) -> AgentRunResult:
     """Run first-pass agent mode: intake -> infer roles -> plan -> execute tools."""
+    if prompt_fn is None:
+        prompt_fn = input
+    if display_fn is None:
+        display_fn = print
+
     config: AgentConfig = load_agent_config(config_path)
     intake_result = inspect_and_select_dataset(input_path, sheet_name=sheet_name)
     state = _new_run_state(dataset_name=Path(input_path).name)
@@ -235,6 +314,7 @@ def run_agent_mode(
             action_history=result.state.actions,
             findings=[],
             triage=triage,
+            assumption_review=state.context.get("assumption_review"),
         )
         save_json(result.artifacts.trace_json_path, _build_trace_payload(result))
         save_markdown(result.artifacts.report_markdown_path, report)
@@ -243,15 +323,101 @@ def run_agent_mode(
     inference_result = infer_column_roles(intake_result.df)
     state.assumptions.extend(inference_result.assumptions)
 
+    cli_overrides = {
+        "key": parse_column_override(agent_key_columns),
+        "date": parse_column_override(agent_date_columns),
+        "numeric": parse_column_override(agent_numeric_columns),
+        "categorical": parse_column_override(agent_categorical_columns),
+    }
+    interactive_overrides: dict[str, list[str] | None] = {
+        "key": None,
+        "date": None,
+        "numeric": None,
+        "categorical": None,
+    }
+    role_resolution = {
+        "key": "auto_accepted",
+        "date": "auto_accepted",
+        "numeric": "auto_accepted",
+        "categorical": "auto_accepted",
+    }
+    review_notes: dict[str, str] = {}
+
+    if confirm_assumptions:
+        display_fn("Assumption confirmation (agent mode)")
+        display_fn(
+            "Precedence policy: CLI override flags > interactive confirmation > inference > config fallback."
+        )
+        display_fn(
+            "For each role: press Enter to accept proposed binding, type comma-separated columns to override, or type none to clear."
+        )
+
+        proposed = resolve_agent_execution_bindings(
+            intake_result.df,
+            inference_result,
+            config,
+            key_override=cli_overrides["key"],
+            date_override=cli_overrides["date"],
+            numeric_override=cli_overrides["numeric"],
+            categorical_override=cli_overrides["categorical"],
+        )
+
+        for role in ["key", "date", "numeric", "categorical"]:
+            role_binding = getattr(proposed, role)
+            if cli_overrides[role] is not None:
+                role_resolution[role] = "user_overridden"
+                review_notes[role] = "locked_by_cli_override"
+                display_fn(
+                    f"- {role}: CLI override already provided -> {', '.join(role_binding.columns) if role_binding.columns else 'none'}"
+                )
+                continue
+
+            display_fn(
+                f"- {role} proposed: {', '.join(role_binding.columns) if role_binding.columns else 'none'}"
+            )
+            user_raw = prompt_fn(f"  {role}> ").strip()
+            parsed = _parse_review_input(user_raw)
+            if parsed is None:
+                role_resolution[role] = "user_confirmed"
+                review_notes[role] = "accepted_default"
+            elif parsed == []:
+                interactive_overrides[role] = []
+                role_resolution[role] = "user_overridden"
+                review_notes[role] = "cleared"
+            else:
+                interactive_overrides[role] = parsed
+                role_resolution[role] = "user_overridden"
+                review_notes[role] = "custom_override"
+
     bindings = resolve_agent_execution_bindings(
         intake_result.df,
         inference_result,
         config,
-        key_override=parse_column_override(agent_key_columns),
-        date_override=parse_column_override(agent_date_columns),
-        numeric_override=parse_column_override(agent_numeric_columns),
-        categorical_override=parse_column_override(agent_categorical_columns),
+        key_override=cli_overrides["key"] if cli_overrides["key"] is not None else interactive_overrides["key"],
+        date_override=cli_overrides["date"] if cli_overrides["date"] is not None else interactive_overrides["date"],
+        numeric_override=cli_overrides["numeric"]
+        if cli_overrides["numeric"] is not None
+        else interactive_overrides["numeric"],
+        categorical_override=cli_overrides["categorical"]
+        if cli_overrides["categorical"] is not None
+        else interactive_overrides["categorical"],
     )
+    _set_assumption_statuses(state, bindings, role_resolution)
+
+    state.context["assumption_review"] = {
+        "enabled": confirm_assumptions,
+        "precedence_policy": [
+            "cli_override_flags",
+            "interactive_confirmation",
+            "inference",
+            "config_fallback",
+        ],
+        "role_resolution": dict(role_resolution),
+        "review_notes": review_notes,
+        "interactive_overrides": {k: (v if v is not None else "__accepted__") for k, v in interactive_overrides.items()},
+        "cli_overrides": {k: (v if v is not None else "__not_set__") for k, v in cli_overrides.items()},
+    }
+
     state.context["resolved_bindings"] = bindings.to_dict()
 
     state.phase = "planning"
@@ -378,6 +544,7 @@ def run_agent_mode(
         action_history=result.state.actions,
         findings=result.findings,
         triage=triage,
+        assumption_review=result.state.context.get("assumption_review"),
     )
 
     save_json(trace_json_path, _build_trace_payload(result))
