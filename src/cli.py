@@ -74,6 +74,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Agent mode only: comma-separated categorical columns override.",
     )
+    parser.add_argument(
+        "--confirm-assumptions",
+        action="store_true",
+        help="Agent mode only: interactively confirm or override inferred role bindings.",
+    )
     return parser.parse_args()
 
 
@@ -219,6 +224,7 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
         agent_date_columns=args.agent_date_columns,
         agent_numeric_columns=args.agent_numeric_columns,
         agent_categorical_columns=args.agent_categorical_columns,
+        confirm_assumptions=args.confirm_assumptions,
     )
 
     suitability = result.intake_result.selected_candidate.suitability
@@ -242,6 +248,15 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
     print(_format_role_candidates("  categorical", result.inference_result.categorical_candidates))
 
     resolved = result.state.context.get("resolved_bindings", {})
+    review = result.state.context.get("assumption_review", {})
+    if args.confirm_assumptions:
+        print("Assumption confirmation summary:")
+        for role in ["key", "date", "numeric", "categorical"]:
+            decision = review.get("role_resolution", {}).get(role, "unknown")
+            note = review.get("review_notes", {}).get(role, "")
+            suffix = f" ({note})" if note else ""
+            print(f"  - {role}: {decision}{suffix}")
+
     print("Resolved bindings used:")
     print(_format_resolved_binding("key", resolved.get("key", {})))
     print(_format_resolved_binding("date", resolved.get("date", {})))
@@ -297,9 +312,9 @@ def main() -> None:
         _run_agent_mode(args)
         return
 
-    if _agent_override_flags_present(args):
+    if _agent_override_flags_present(args) or args.confirm_assumptions:
         raise SystemExit(
-            "Agent-only override flags (--agent-*-columns) are only supported with --mode agent."
+            "Agent-only flags (--agent-*-columns, --confirm-assumptions) are only supported with --mode agent."
         )
 
     _run_deterministic_mode(args)

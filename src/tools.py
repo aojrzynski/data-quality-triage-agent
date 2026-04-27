@@ -243,6 +243,13 @@ def execute_agent_bound_tool(
         raise ValueError(f"Unknown deterministic tool: {name}")
 
     details["finding_count"] = len(findings)
+    findings_by_column: dict[str, int] = {}
+    for finding in findings:
+        if finding.column is None:
+            continue
+        findings_by_column[finding.column] = findings_by_column.get(finding.column, 0) + 1
+    details["columns_with_findings"] = sorted(findings_by_column.keys())
+    details["finding_count_by_column"] = findings_by_column
     return AgentToolExecutionResult(status="completed", findings=findings, details=details)
 
 

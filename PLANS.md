@@ -81,9 +81,10 @@ Acceptance criteria:
 Acceptance criteria:
 - agent mode produces a clear triage conclusion with traceable action history
 
-## Milestone 9 — Optional human-in-the-loop + polish (planned)
+## Milestone 9 — Optional human-in-the-loop + polish (completed)
 - user confirmation/override for critical assumptions
 - optional LLM polish for summaries/plans (still non-authoritative)
+- richer trace/report visibility for which bound columns were checked and which produced findings
 
 Acceptance criteria:
 - users can inspect and override assumptions

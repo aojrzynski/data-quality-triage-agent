@@ -78,21 +78,25 @@ class AgentExecutionBindings:
         return mapping.get(tool_name)
 
 
-def parse_column_override(raw: str | None) -> list[str]:
+def parse_column_override(raw: str | None) -> list[str] | None:
     """Parse a comma-separated override string into normalized column names."""
     if raw is None:
-        return []
+        return None
     return [token.strip() for token in raw.split(",") if token.strip()]
 
 
 def _resolve_role_binding(
     role: Literal["key", "date", "numeric", "categorical"],
     available_columns: set[str],
-    override_columns: list[str],
+    override_columns: list[str] | None,
     inferred_columns: list[str],
     fallback_columns: list[str],
 ) -> RoleBinding:
-    ignored_override = [column for column in override_columns if column not in available_columns]
+    ignored_override = (
+        [column for column in override_columns if column not in available_columns]
+        if override_columns is not None
+        else []
+    )
 
     def _valid(columns: list[str]) -> list[str]:
         seen: set[str] = set()
@@ -103,7 +107,7 @@ def _resolve_role_binding(
                 seen.add(column)
         return valid
 
-    if override_columns:
+    if override_columns is not None:
         valid_override = _valid(override_columns)
         if valid_override:
             return RoleBinding(
@@ -111,6 +115,14 @@ def _resolve_role_binding(
                 columns=valid_override,
                 source_by_column={column: "user_override" for column in valid_override},
                 ignored_override_columns=ignored_override,
+            )
+        if not override_columns:
+            return RoleBinding(
+                role=role,
+                columns=[],
+                source_by_column={},
+                skipped_reason="Binding was explicitly cleared by user override.",
+                ignored_override_columns=[],
             )
         return RoleBinding(
             role=role,
@@ -164,28 +176,28 @@ def resolve_agent_execution_bindings(
         key=_resolve_role_binding(
             role="key",
             available_columns=available_columns,
-            override_columns=key_override or [],
+            override_columns=key_override,
             inferred_columns=[candidate.column_name for candidate in inference_result.key_candidates],
             fallback_columns=list(config.key_columns),
         ),
         date=_resolve_role_binding(
             role="date",
             available_columns=available_columns,
-            override_columns=date_override or [],
+            override_columns=date_override,
             inferred_columns=[candidate.column_name for candidate in inference_result.date_candidates],
             fallback_columns=list(config.date_gap_columns),
         ),
         numeric=_resolve_role_binding(
             role="numeric",
             available_columns=available_columns,
-            override_columns=numeric_override or [],
+            override_columns=numeric_override,
             inferred_columns=[candidate.column_name for candidate in inference_result.numeric_measure_candidates],
             fallback_columns=list(config.numeric_outlier_columns),
         ),
         categorical=_resolve_role_binding(
             role="categorical",
             available_columns=available_columns,
-            override_columns=categorical_override or [],
+            override_columns=categorical_override,
             inferred_columns=[candidate.column_name for candidate in inference_result.categorical_candidates],
             fallback_columns=list(config.categorical_rules.keys()),
         ),
