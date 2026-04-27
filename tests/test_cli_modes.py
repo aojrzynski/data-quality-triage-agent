@@ -300,3 +300,61 @@ def test_agent_mode_confirm_assumptions_prompts_and_prints_summary(
     assert "Assumption confirmation (agent mode)" in captured.out
     assert "Assumption confirmation summary:" in captured.out
     assert "key: user_confirmed" in captured.out
+
+
+def test_deterministic_mode_llm_summary_flag_remains_compatible(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setattr(
+        "src.cli.generate_llm_summary",
+        lambda run_result, model=None: "## Executive Summary\n\nCompat summary.",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "sample_data/broken/orders_nulls.csv",
+            "--output-dir",
+            str(output_dir),
+            "--llm-summary",
+        ],
+    )
+
+    cli.main()
+
+    assert (output_dir / "orders_nulls_llm_summary.md").exists()
+    assert "Compat summary." in (output_dir / "orders_nulls_llm_summary.md").read_text()
+
+
+def test_agent_mode_llm_summary_failure_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setattr(
+        "src.agent_runner.generate_agent_llm_polish",
+        lambda _payload, model=None: (_ for _ in ()).throw(RuntimeError("simulated llm failure")),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input",
+            "sample_data/clean/orders_clean.csv",
+            "--mode",
+            "agent",
+            "--output-dir",
+            str(output_dir),
+            "--llm-summary",
+        ],
+    )
+
+    cli.main()
+    captured = capsys.readouterr()
+    assert "LLM polish skipped/failed: simulated llm failure" in captured.out

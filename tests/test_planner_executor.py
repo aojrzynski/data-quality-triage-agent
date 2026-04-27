@@ -324,3 +324,74 @@ def test_action_details_include_columns_with_findings(tmp_path: Path) -> None:
     duplicate_action = next(action for action in result.state.actions if action.action_name == "duplicate_keys")
     assert "columns_with_findings" in duplicate_action.details
     assert "finding_count_by_column" in duplicate_action.details
+
+
+def test_agent_llm_polish_writes_additional_artifact_and_trace_status(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    def _fake_polish(payload: dict, model: str | None = None) -> str:
+        assert payload["triage_summary"]["top_issues"] is not None
+        assert payload["assumption_review"]["enabled"] is True
+        return (
+            "## Triage Outcome\n\nPolished.\n\n"
+            "## Key Findings and Impact\n\nDeterministic findings.\n\n"
+            "## Investigations and Limits\n\nSkips are visible.\n\n"
+            "## Assumptions and Bindings\n\nUser confirmation recorded.\n\n"
+            "## Suggested Next Steps\n\nUse deterministic outputs."
+        )
+
+    monkeypatch.setattr("src.agent_runner.generate_agent_llm_polish", _fake_polish)
+    prompts = iter(["", "", "", ""])
+    result = run_agent_mode(
+        input_path="tests/fixtures/role_inference/trades_stage7.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        confirm_assumptions=True,
+        llm_summary=True,
+        prompt_fn=lambda _msg: next(prompts),
+        display_fn=lambda _msg: None,
+    )
+
+    assert result.artifacts.llm_report_markdown_path is not None
+    assert result.artifacts.llm_report_markdown_path.exists()
+    assert "User confirmation recorded." in result.artifacts.llm_report_markdown_path.read_text()
+    trace = json.loads(result.artifacts.trace_json_path.read_text())
+    assert trace["llm_polish"]["status"] == "completed"
+    assert trace["llm_polish"]["requested"] is True
+    assert trace["llm_polish"]["output_path"].endswith("_agent_report_llm.md")
+
+
+def test_agent_llm_polish_missing_key_fails_softly(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    result = run_agent_mode(
+        input_path="sample_data/clean/orders_clean.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        llm_summary=True,
+    )
+
+    assert result.artifacts.trace_json_path.exists()
+    assert result.artifacts.report_markdown_path.exists()
+    assert result.artifacts.llm_report_markdown_path is None
+    llm_polish = result.state.context["llm_polish"]
+    assert llm_polish["status"] == "failed"
+    assert "OPENAI_API_KEY" in llm_polish["reason"]
+
+
+def test_agent_llm_polish_error_does_not_break_main_run(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.agent_runner.generate_agent_llm_polish",
+        lambda _payload, model=None: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    result = run_agent_mode(
+        input_path="sample_data/broken/orders_duplicate_keys.csv",
+        output_dir=tmp_path,
+        config_path="config/default_config.json",
+        llm_summary=True,
+    )
+
+    assert result.artifacts.trace_json_path.exists()
+    assert result.artifacts.report_markdown_path.exists()
+    assert result.state.context["llm_polish"]["status"] == "failed"
+    assert result.state.context["llm_polish"]["reason"] == "boom"

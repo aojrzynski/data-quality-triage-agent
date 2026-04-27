@@ -7,7 +7,7 @@ This document describes both:
 
 The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
 
-## Current architecture (Stage 9 baseline)
+## Current architecture (Stage 10 baseline)
 
 ### 1) Input and normalization layer
 - `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
@@ -38,6 +38,8 @@ The design principle is incremental evolution: preserve deterministic reliabilit
 
 ### 5) Optional LLM layer
 - `src/llm_summary.py`: optional summary generation using deterministic outputs.
+- Agent mode can optionally produce a separate LLM-polished narrative artifact (`*_agent_report_llm.md`) derived only from deterministic trace/report context.
+- LLM status metadata is recorded in run state/trace and never replaces deterministic evidence artifacts.
 - LLM is non-authoritative and additive.
 
 ## Target architecture (incremental)

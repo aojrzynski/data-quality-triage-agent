@@ -30,7 +30,7 @@ Deterministic mode means:
 
 This mode is intended to remain stable and backward compatible.
 
-### Agent mode (Stage 9 implementation)
+### Agent mode (Stage 10 implementation)
 Agent mode currently means:
 - Explicit orchestration/planning steps (rule-based planner/executor).
 - Assumption tracking (inferred assumptions recorded in run state).
@@ -40,8 +40,10 @@ Agent mode currently means:
 - Dynamic deterministic tool invocation against resolved columns, with inspectable action history.
 - Bounded second-pass investigation actions triggered from deterministic findings.
 - Deterministic triage summary generation and markdown report artifact output.
+- Optional LLM narrative polish artifact output (`*_agent_report_llm.md`) when explicitly requested.
 - Explicit stop conditions and stop rationale capture.
 - Categorical validation only where selected columns have configured categorical rule sets; otherwise actions are explicitly skipped and traced.
+- LLM polish is strictly non-authoritative: deterministic findings/trace/report remain source of truth, and LLM failures are soft (run still completes).
 - Future work: deeper adaptive replanning and broader UX refinement.
 
 ## In scope

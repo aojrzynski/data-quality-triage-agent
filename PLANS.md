@@ -89,3 +89,12 @@ Acceptance criteria:
 Acceptance criteria:
 - users can inspect and override assumptions
 - LLM remains optional and bounded by deterministic evidence
+
+## Milestone 10 — Agent report LLM polish artifact (completed)
+- extend optional `--llm-summary` behavior to agent mode as a separate narrative polish artifact
+- preserve deterministic agent report/trace as canonical outputs
+- add fail-soft handling + trace metadata for LLM polish request/result
+
+Acceptance criteria:
+- agent mode can optionally write `*_agent_report_llm.md` without replacing deterministic artifacts
+- failures/missing API key do not block deterministic agent completion

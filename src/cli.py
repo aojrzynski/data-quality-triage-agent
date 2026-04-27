@@ -225,6 +225,8 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
         agent_numeric_columns=args.agent_numeric_columns,
         agent_categorical_columns=args.agent_categorical_columns,
         confirm_assumptions=args.confirm_assumptions,
+        llm_summary=args.llm_summary,
+        llm_model=args.model,
     )
 
     suitability = result.intake_result.selected_candidate.suitability
@@ -289,6 +291,13 @@ def _run_agent_mode(args: argparse.Namespace) -> None:
     print(f"Investigations performed: {'yes' if investigations else 'no'}")
     print(f"Agent trace output: {result.artifacts.trace_json_path}")
     print(f"Agent report output: {result.artifacts.report_markdown_path}")
+    if args.llm_summary:
+        llm_polish = result.state.context.get("llm_polish", {})
+        if llm_polish.get("status") == "completed":
+            print(f"LLM polished report: {llm_polish.get('output_path')}")
+        else:
+            reason = llm_polish.get("reason", "unknown")
+            print(f"LLM polish skipped/failed: {reason}")
 
     if suitability.hard_failure:
         raise SystemExit(1)
