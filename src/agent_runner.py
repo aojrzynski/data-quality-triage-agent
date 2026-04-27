@@ -19,6 +19,7 @@ from src.investigation_tools import (
     investigate_unexpected_categorical_values,
 )
 from src.io import save_json, save_markdown
+from src.llm_summary import build_agent_llm_polish_payload, generate_agent_llm_polish
 from src.models import AgentConfig, Finding
 from src.planner import PlanResult, build_rule_based_plan
 from src.role_inference import RoleInferenceResult, infer_column_roles
@@ -35,6 +36,7 @@ class AgentRunArtifacts:
 
     trace_json_path: Path
     report_markdown_path: Path
+    llm_report_markdown_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +139,7 @@ def _build_trace_payload(result: AgentRunResult) -> dict:
             "investigation_count": len(result.state.context.get("investigation_results", [])),
             "executed_action_count": len(result.state.actions),
         },
+        "llm_polish": result.state.context.get("llm_polish", {}),
     }
 
 
@@ -258,6 +261,8 @@ def run_agent_mode(
     agent_numeric_columns: str | None = None,
     agent_categorical_columns: str | None = None,
     confirm_assumptions: bool = False,
+    llm_summary: bool = False,
+    llm_model: str | None = None,
     prompt_fn=None,
     display_fn=None,
 ) -> AgentRunResult:
@@ -277,6 +282,15 @@ def run_agent_mode(
 
     suitability = intake_result.selected_candidate.suitability
     if suitability.hard_failure:
+        llm_status = {
+            "requested": llm_summary,
+            "mode": "agent",
+            "status": "skipped",
+            "reason": "intake_hard_failure" if llm_summary else "not_requested",
+        }
+        if llm_model:
+            llm_status["model"] = llm_model
+        state.context["llm_polish"] = llm_status
         state.stop_rationale = StopRationale(
             reason="Intake suitability hard-failed; no deterministic tools were executed.",
             code="INTAKE_HARD_FAILURE",
@@ -295,6 +309,7 @@ def run_agent_mode(
             artifacts=AgentRunArtifacts(
                 trace_json_path=trace_json_path,
                 report_markdown_path=report_markdown_path,
+                llm_report_markdown_path=None,
             ),
         )
         report = build_agent_markdown_report(
@@ -524,6 +539,7 @@ def run_agent_mode(
         artifacts=AgentRunArtifacts(
             trace_json_path=trace_json_path,
             report_markdown_path=report_markdown_path,
+            llm_report_markdown_path=None,
         ),
     )
 
@@ -547,6 +563,65 @@ def run_agent_mode(
         assumption_review=result.state.context.get("assumption_review"),
     )
 
-    save_json(trace_json_path, _build_trace_payload(result))
     save_markdown(report_markdown_path, report)
+
+    llm_status: dict = {
+        "requested": llm_summary,
+        "mode": "agent",
+        "status": "skipped",
+        "reason": "not_requested",
+    }
+    if llm_model:
+        llm_status["model"] = llm_model
+
+    if llm_summary:
+        llm_payload = build_agent_llm_polish_payload(
+            dataset_name=result.state.dataset_name,
+            intake_summary={
+                "row_count": len(result.intake_result.df),
+                "column_count": len(result.intake_result.df.columns),
+                "file_type": result.intake_result.file_type,
+                "selection_mode": result.intake_result.selection_mode,
+                "selected_sheet_name": result.intake_result.selected_sheet_name,
+                "suitability_status": suitability.status,
+                "suitability_score": suitability.score,
+            },
+            triage_summary=result.triage_summary,
+            resolved_bindings=result.state.context.get("resolved_bindings", {}),
+            action_history=[_action_to_dict(action) for action in result.state.actions],
+            assumption_review=result.state.context.get("assumption_review"),
+        )
+        try:
+            polished_report = generate_agent_llm_polish(llm_payload, model=llm_model)
+            llm_report_path = Path(output_dir) / f"{Path(input_path).stem}_agent_report_llm.md"
+            save_markdown(llm_report_path, polished_report)
+            object.__setattr__(
+                result,
+                "artifacts",
+                AgentRunArtifacts(
+                    trace_json_path=result.artifacts.trace_json_path,
+                    report_markdown_path=result.artifacts.report_markdown_path,
+                    llm_report_markdown_path=llm_report_path,
+                ),
+            )
+            llm_status = {
+                "requested": True,
+                "mode": "agent",
+                "status": "completed",
+                "output_path": str(llm_report_path),
+            }
+            if llm_model:
+                llm_status["model"] = llm_model
+        except Exception as exc:  # Optional layer must never break deterministic run.
+            llm_status = {
+                "requested": True,
+                "mode": "agent",
+                "status": "failed",
+                "reason": str(exc),
+            }
+            if llm_model:
+                llm_status["model"] = llm_model
+
+    state.context["llm_polish"] = llm_status
+    save_json(trace_json_path, _build_trace_payload(result))
     return result

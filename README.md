@@ -34,9 +34,10 @@ Agent mode plans which deterministic tools to execute, resolves role-to-tool col
 The CLI writes files into `outputs/`:
 - Deterministic mode: `*_profile.json`, `*_report.md`
 - Agent mode: `*_agent_trace.json`, `*_agent_report.md`
+- Agent mode with `--llm-summary`: additional `*_agent_report_llm.md` polish artifact (optional, non-authoritative)
 
-## Optional LLM summary
-You can optionally generate an LLM-written summary on top of deterministic findings.
+## Optional LLM summary / polish
+You can optionally generate an LLM-written layer on top of deterministic outputs.
 
 This uses the OpenAI API and requires `OPENAI_API_KEY`.
 
@@ -47,6 +48,11 @@ python -m src.cli \
   --expected tests/fixtures/expected/orders_bad_categories_expected.json \
   --llm-summary
 ```
+
+Behavior by mode:
+- Deterministic mode: keeps existing optional `*_llm_summary.md`.
+- Agent mode: keeps deterministic `*_agent_trace.json` and `*_agent_report.md` as source-of-truth artifacts, and optionally adds `*_agent_report_llm.md`.
+- If the API key is missing or the API call fails in agent mode, the run still succeeds, deterministic artifacts are still written, and the trace records LLM polish failure/skip status.
 
 
 ## Intake behavior (Stage 4)
