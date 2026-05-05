@@ -2,6 +2,36 @@
 
 Data Quality Triage Agent is a local, CLI-first Python project for inspecting tabular datasets (CSV/XLSX), detecting data quality issues with deterministic checks, and producing inspectable triage artifacts. It includes both a stable deterministic mode and a bounded agent mode that orchestrates deterministic tools without making LLM output authoritative.
 
+## Why this exists
+
+I built this project to understand agents by building one from the inside out.
+
+A simple way to check a spreadsheet is to upload it to ChatGPT and ask, “what looks wrong?” That can work for one-off analysis. But it hides the design questions I wanted to understand:
+
+- what normal code should do instead of the LLM
+- what the agent actually decides
+- how to keep results repeatable
+- how to manage token usage
+- how to make the run inspectable after it finishes
+
+This project explores those questions with a deliberately bounded data quality agent. The deterministic checks do the issue detection. The agent layer decides which checks to run, which columns to use, when to investigate, and how to record the process. The LLM layer is optional and only polishes the final report.
+
+## Why not just ask an LLM?
+
+For a personal one-off task, asking an LLM to inspect a file may be enough.
+
+This project is about a different pattern: use deterministic code for the parts that should be repeatable, testable, and cheap, then use agent logic to orchestrate that code.
+
+That matters when you want:
+
+- consistent checks across many files
+- lower and more predictable token usage
+- less data sent to an external model
+- clearer evidence for every finding
+- a trace of what the agent planned, ran, skipped, and investigated
+
+The point is not that an LLM cannot inspect data. The point is that not every part of the workflow should be an LLM call.
+
 ## What this project demonstrates
 
 - Deterministic data quality checking with reproducible results.
@@ -150,6 +180,16 @@ LLM usage is optional and used only for narrative polish.
 - `src/triage_reporting.py` — deterministic triage summary/report.
 - `src/llm_summary.py` — optional LLM-polish helpers.
 - `docs/` — learning-oriented walkthroughs.
+
+## How this can be extended
+
+The project is split into layers so future work can focus on one area without rewriting everything:
+
+- add more deterministic checks
+- change the agent planning/investigation behaviour
+- expand the optional LLM layer
+
+See `docs/extension_paths.md` for more detail.
 
 ## Run tests
 
