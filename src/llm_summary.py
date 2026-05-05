@@ -30,6 +30,7 @@ def _call_openai_markdown(
     developer_instruction: str,
     model: str | None = None,
 ) -> str:
+    # Model choice is configurable, but this layer is always optional polish.
     selected_model = model or os.getenv("OPENAI_MODEL", "gpt-5.4")
     client = OpenAI(api_key=_get_api_key())
     response = client.responses.create(

@@ -1,89 +1,176 @@
 # Data Quality Triage Agent
 
-A local Python CLI project for data quality triage.
+Data Quality Triage Agent is a local, CLI-first Python project for inspecting tabular datasets (CSV/XLSX), detecting data quality issues with deterministic checks, and producing inspectable triage artifacts. It includes both a stable deterministic mode and a bounded agent mode that orchestrates deterministic tools without making LLM output authoritative.
 
-## What it is today
-The current implementation is a **deterministic data quality triage tool** with an explicit intake stage (tabular suitability + sheet selection), deterministic role inference/assumption generation, and optional LLM-written summary support.
+## What this project demonstrates
 
-## Where it's going
-The target is a genuine **Data Quality Triage Agent** with a separate agent mode layered on top of deterministic checks.
+- Deterministic data quality checking with reproducible results.
+- Rule-based agent orchestration on top of deterministic tools.
+- Explicit intake, role inference, assumption tracking, and binding resolution.
+- Inspectable outputs (`json` trace + markdown report) designed for debugging and learning.
+- Optional LLM-polished narrative that never replaces deterministic findings.
 
-For canonical details, see:
-- `PROJECT_SCOPE.md`
-- `ARCHITECTURE.md`
-- `PLANS.md`
+## Why this is an "agent"
 
-## Run
+The agent mode does more than run a fixed checklist. It:
+
+- infers likely semantic column roles,
+- resolves role bindings via explicit precedence (override -> confirmation -> inference -> config fallback),
+- builds a rule-based execution plan,
+- executes deterministic tools using resolved bindings,
+- runs bounded second-pass investigations,
+- records a full trace of what happened and why.
+
+This is agentic orchestration, not autonomous open-ended reasoning.
+
+## Quick start
 
 ```bash
-python -m src.cli --input sample_data/clean/orders_clean.csv
-python -m src.cli --input sample_data/clean/orders_clean.xlsx
-python -m src.cli --input sample_data/clean/orders_clean.xlsx --sheet Sheet1
+python -m venv .venv
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+Windows (Git Bash):
+
+```bash
+source .venv/Scripts/activate
+python -m pip install -e ".[dev]"
+```
+
+Run deterministic mode:
+
+```bash
 python -m src.cli --input sample_data/clean/orders_clean.csv --mode deterministic
 ```
 
-Agent mode now runs a deterministic, rule-based planner/executor with bounded second-pass investigations:
+Run agent mode:
 
 ```bash
-python -m src.cli --input sample_data/clean/orders_clean.csv --mode agent
+python -m src.cli --input sample_data/broken/orders_nulls.csv --mode agent
 ```
 
-Agent mode plans which deterministic tools to execute, resolves role-to-tool column bindings (override -> inferred -> config fallback), runs tools against those resolved bindings, performs limited post-check investigations for key issue families, and writes inspectable trace/report artifacts.
-
-## Outputs
-The CLI writes files into `outputs/`:
-- Deterministic mode: `*_profile.json`, `*_report.md`
-- Agent mode: `*_agent_trace.json`, `*_agent_report.md`
-- Agent mode with `--llm-summary`: additional `*_agent_report_llm.md` polish artifact (optional, non-authoritative)
-
-## Optional LLM summary / polish
-You can optionally generate an LLM-written layer on top of deterministic outputs.
-
-This uses the OpenAI API and requires `OPENAI_API_KEY`.
+## Example commands
 
 ```bash
+# deterministic mode (CSV)
+python -m src.cli --input sample_data/broken/orders_outliers.csv --mode deterministic
+
+# deterministic mode (XLSX + explicit sheet)
+python -m src.cli --input sample_data/broken/orders_date_gaps.xlsx --sheet Sheet1 --mode deterministic
+
+# agent mode (rule-based planner/executor)
+python -m src.cli --input sample_data/broken/orders_bad_categories.csv --mode agent
+
+# agent mode with interactive assumption confirmation
+python -m src.cli --input sample_data/broken/orders_duplicate_keys.csv --mode agent --confirm-assumptions
+
+# agent mode with non-interactive overrides
 python -m src.cli \
-  --input sample_data/broken/orders_bad_categories.xlsx \
-  --config config/default_config.json \
-  --expected tests/fixtures/expected/orders_bad_categories_expected.json \
-  --llm-summary
+  --input sample_data/broken/orders_nulls.csv \
+  --mode agent \
+  --agent-key-columns order_id \
+  --agent-date-columns order_date \
+  --agent-numeric-columns amount \
+  --agent-categorical-columns region
+
+# optional LLM-polished report in agent mode
+python -m src.cli --input sample_data/broken/orders_schema_surprises.csv --mode agent --llm-summary
 ```
 
-Behavior by mode:
-- Deterministic mode: keeps existing optional `*_llm_summary.md`.
-- Agent mode: keeps deterministic `*_agent_trace.json` and `*_agent_report.md` as source-of-truth artifacts, and optionally adds `*_agent_report_llm.md`.
-- If the API key is missing or the API call fails in agent mode, the run still succeeds, deterministic artifacts are still written, and the trace records LLM polish failure/skip status.
+More copy/paste commands: `docs/example_commands.md`.
 
+## Deterministic mode vs agent mode
 
-## Intake behavior (Stage 4)
-- Input runs through deterministic intake before checks.
-- CSV inputs use a single candidate dataset.
-- XLSX inputs auto-rank sheets when `--sheet` is omitted, then select the strongest tabular candidate.
-- Intake reports suitability (`suitable|borderline|unsuitable`) with score and warnings in CLI output.
-- Suitability is heuristic and intentionally limited (no OCR, no full spreadsheet semantics).
+### Deterministic mode
 
+- Config-driven deterministic checks.
+- Stable baseline behavior.
+- Outputs:
+  - `*_profile.json`
+  - `*_report.md`
+  - optional `*_llm_summary.md` when `--llm-summary` is used.
 
-## Role inference behavior (Stage 5)
-- Deterministic mode now performs rule-based column role inference after intake and before checks.
-- Inferred assumptions include likely `key`, `date`, `numeric_measure`, and `categorical` columns.
-- Each inferred assumption carries confidence + provenance and is marked as `inferred`.
-- This output is currently informative only: deterministic checks are still driven by config.
+### Agent mode
 
+- Intake + role inference + assumption tracking.
+- Rule-based planner and deterministic tool execution.
+- Resolved role-to-tool bindings with explicit provenance.
+- Bounded investigations for selected finding families.
+- Outputs:
+  - `*_agent_trace.json`
+  - `*_agent_report.md`
+  - optional `*_agent_report_llm.md` when `--llm-summary` is used.
 
-## Agent mode behavior (Stage 9)
-- Runs intake and role inference first.
-- Builds a rule-based plan that always starts with schema/completeness checks, then conditionally adds role-driven tool families.
-- Executes selected deterministic tools through the tool layer.
-- Records planned/executed actions and explicit stop rationale.
-- Performs bounded second-pass investigations for duplicate keys, numeric outliers, unexpected categorical values, and high-severity missing values.
-- Produces a structured `*_agent_trace.json` execution trace and `*_agent_report.md` triage summary.
-- Implements optional human confirmation prompts; still does **not** implement deep adaptive replanning.
+## Input formats
 
-- Optional non-interactive agent overrides are available in agent mode only: `--agent-key-columns`, `--agent-date-columns`, `--agent-numeric-columns`, `--agent-categorical-columns`.
-- Optional interactive assumption confirmation is available in agent mode via `--confirm-assumptions`.
-  - Prompt flow is per role (`key`, `date`, `numeric`, `categorical`).
-  - Enter accepts proposal, comma-separated columns override, and `none` clears the role binding.
-  - Binding precedence is deterministic and explicit: CLI override flags > interactive confirmation > inference > config fallback.
-- Categorical validation in agent mode still requires configured rule sets per selected column; columns without rules are explicitly skipped and traced.
-- Deterministic mode remains config-driven and rejects agent-only override flags.
-- Trace/report now include clearer per-action binding evidence, including checked columns and which bound columns actually produced findings.
+- `.csv`
+- `.xlsx`
+
+For XLSX, if `--sheet` is omitted, intake ranks sheets and auto-selects the strongest tabular candidate.
+
+## Output artifacts
+
+All outputs are written to `outputs/` by default (`--output-dir` to change).
+
+Agent traces are intentionally verbose so execution is inspectable and reproducible.
+
+## Optional LLM polish
+
+LLM usage is optional and used only for narrative polish.
+
+- Required only when using `--llm-summary`:
+  - `OPENAI_API_KEY`
+  - optional `OPENAI_MODEL`
+- Not required for deterministic mode or core agent mode.
+- Deterministic findings, trace, and deterministic reports remain source of truth.
+
+## Example use cases
+
+- Triage a newly delivered CSV before downstream analysis.
+- Compare how the same dataset behaves in deterministic mode vs agent mode.
+- Demonstrate inspectable agent orchestration in a portfolio project.
+- Use as a teaching codebase for bounded agent design.
+
+## Project structure
+
+- `src/cli.py` — CLI and mode boundary.
+- `src/intake.py` — suitability checks + XLSX sheet selection.
+- `src/role_inference.py` — deterministic role inference.
+- `src/bindings.py` — resolved binding logic.
+- `src/planner.py` — rule-based action planning.
+- `src/tools.py` / `src/checks.py` — deterministic tool wrappers + check logic.
+- `src/agent_runner.py` — agent loop and artifact generation.
+- `src/investigation_tools.py` — bounded second-pass investigations.
+- `src/triage_reporting.py` — deterministic triage summary/report.
+- `src/llm_summary.py` — optional LLM-polish helpers.
+- `docs/` — learning-oriented walkthroughs.
+
+## Run tests
+
+```bash
+python -m pytest
+```
+
+## Limitations and non-goals
+
+- Not a general spreadsheet intelligence system.
+- Works best for tabular CSV/XLSX with a clear header row.
+- No web UI.
+- No database-backed architecture.
+- No deep adaptive replanning or open-ended autonomy.
+- LLM is not used to detect issues and is not authoritative.
+
+## Roadmap / future ideas
+
+See `PLANS.md` for focused future work, including:
+
+- richer planning heuristics,
+- stronger investigation playbooks,
+- improved validation ergonomics,
+- more test coverage for edge-case datasets.

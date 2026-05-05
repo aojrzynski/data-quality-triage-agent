@@ -1,4 +1,8 @@
-"""CLI entry point for the Data Quality Triage Agent."""
+"""CLI entry point for the Data Quality Triage Agent.
+
+The CLI enforces the mode boundary: deterministic mode runs a fixed check path,
+while agent mode orchestrates deterministic tools and writes trace artifacts.
+"""
 
 from __future__ import annotations
 
@@ -118,6 +122,11 @@ def _resolve_sheet_arg(sheet: str | None) -> str | int | None:
 
 
 def _run_deterministic_mode(args: argparse.Namespace) -> None:
+    """Run the stable config-driven pipeline.
+
+    This path is intentionally straightforward and remains the compatibility
+    baseline even as agent mode evolves.
+    """
     input_path = Path(args.input)
     output_dir = Path(args.output_dir)
     sheet_arg = _resolve_sheet_arg(args.sheet)
@@ -212,6 +221,7 @@ def _run_deterministic_mode(args: argparse.Namespace) -> None:
 
 
 def _run_agent_mode(args: argparse.Namespace) -> None:
+    """Run bounded agent orchestration over deterministic tools."""
     input_path = Path(args.input)
     sheet_arg = _resolve_sheet_arg(args.sheet)
 

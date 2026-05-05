@@ -1,4 +1,8 @@
-"""Assumption-driven tool binding resolution for agent mode."""
+"""Assumption-driven tool binding resolution for agent mode.
+
+Bindings exist so planning/execution can target deterministic tools using a
+single resolved view of column roles, with explicit precedence and provenance.
+"""
 
 from __future__ import annotations
 
@@ -92,6 +96,8 @@ def _resolve_role_binding(
     inferred_columns: list[str],
     fallback_columns: list[str],
 ) -> RoleBinding:
+    # Precedence is strict and inspectable:
+    # user override -> inferred candidates -> config fallback.
     ignored_override = (
         [column for column in override_columns if column not in available_columns]
         if override_columns is not None

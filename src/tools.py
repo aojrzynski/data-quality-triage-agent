@@ -38,7 +38,11 @@ class Tool:
 
 @dataclass(frozen=True)
 class AgentToolExecutionResult:
-    """Execution outcome for one agent tool invocation."""
+    """Execution outcome for one agent tool invocation.
+
+    Agent mode orchestrates which tools run; this result keeps execution details
+    structured so traces can explain what ran, what was skipped, and why.
+    """
 
     status: Literal["completed", "skipped"]
     findings: list[Finding]

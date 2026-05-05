@@ -45,7 +45,11 @@ def build_rule_based_plan(
     config: AgentConfig,
     bindings: AgentExecutionBindings,
 ) -> PlanResult:
-    """Select a deterministic first-pass tool sequence using explicit rules."""
+    """Select a deterministic first-pass tool sequence using explicit rules.
+
+    The planner consumes resolved bindings rather than raw inference so user
+    overrides and confirmation decisions can affect tool selection deterministically.
+    """
     suitability = intake_result.selected_candidate.suitability
 
     rationale: list[str] = [
