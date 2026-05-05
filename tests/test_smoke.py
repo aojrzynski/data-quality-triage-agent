@@ -1,3 +1,5 @@
+import warnings
+
 from src.checks import (
     check_date_gaps,
     check_duplicate_keys,
@@ -156,6 +158,16 @@ def test_date_gaps_check_finds_missing_dates() -> None:
     assert scored[0].column == "order_date"
     assert scored[0].severity == "medium"
     assert scored[0].evidence["missing_dates_count"] == 2
+
+
+def test_date_gaps_check_does_not_emit_datetime_inference_warning() -> None:
+    df = load_csv("sample_data/broken/orders_date_gaps.csv")
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        check_date_gaps(df, column="order_date")
+
+    warning_messages = [str(item.message) for item in captured]
+    assert not any("Could not infer format" in message for message in warning_messages)
 
 
 def test_numeric_outliers_check_finds_amount_issue() -> None:
