@@ -40,5 +40,7 @@ This walkthrough explains the full runtime flow from input file to output artifa
 
 10. **Optional LLM polish**
     - If `--llm-summary` is set, an additional markdown artifact can be generated.
-    - Deterministic artifacts remain the source of truth.
+    - Requires `OPENAI_API_KEY` only for this optional step.
+    - Deterministic mode and normal rule-based agent mode do not require an API key.
+    - Deterministic artifacts remain the source of truth; the LLM output is optional and non-authoritative.
     - This keeps API failures low-risk: deterministic runs still complete and remain inspectable.
