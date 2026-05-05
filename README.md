@@ -214,3 +214,13 @@ See `PLANS.md` for focused future work, including:
 - stronger investigation playbooks,
 - improved validation ergonomics,
 - more test coverage for edge-case datasets.
+
+## Further reading
+
+- `PROJECT_SCOPE.md` — what is in and out of scope
+- `ARCHITECTURE.md` — short architecture overview
+- `PLANS.md` — roadmap and future work
+- `docs/how_it_works.md` — runtime flow walkthrough
+- `docs/architecture_walkthrough.md` — module-by-module guide
+- `docs/adding_a_new_check.md` — how to extend the deterministic check layer
+- `docs/extension_paths.md` — ways to extend the project
