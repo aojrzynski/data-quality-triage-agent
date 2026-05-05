@@ -71,7 +71,11 @@ def _is_unnamed_header(column_name: object) -> bool:
 
 
 def assess_tabular_suitability(df: pd.DataFrame) -> TabularSuitabilityResult:
-    """Compute a deterministic suitability score for tabular analysis."""
+    """Compute a deterministic suitability score for tabular analysis.
+
+    Intake is a guardrail: it prevents downstream checks from pretending that
+    clearly non-tabular inputs are valid analysis targets.
+    """
     row_count = int(len(df))
     column_count = int(len(df.columns))
 

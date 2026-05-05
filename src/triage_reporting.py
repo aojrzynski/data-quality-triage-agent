@@ -1,4 +1,8 @@
-"""Deterministic triage-summary/report helpers for agent mode."""
+"""Deterministic triage-summary/report helpers for agent mode.
+
+These helpers transform deterministic findings and investigation outputs into a
+compact, inspectable triage narrative. They do not infer new issues.
+"""
 
 from __future__ import annotations
 

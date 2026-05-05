@@ -1,4 +1,8 @@
-"""Agent-mode rule-based planner/executor."""
+"""Agent-mode rule-based planner/executor.
+
+This module coordinates deterministic components (intake, inference, planner,
+tools, investigations, reporting) and records an inspectable trace.
+"""
 
 from __future__ import annotations
 
@@ -89,6 +93,8 @@ def _stop_to_dict(stop: StopRationale | None) -> dict | None:
 
 
 def _build_trace_payload(result: AgentRunResult) -> dict:
+    # The trace is intentionally verbose: it is the primary debugging and trust
+    # artifact for understanding agent-mode decisions and outcomes.
     suitability = result.intake_result.selected_candidate.suitability
     return {
         "run_id": result.state.run_id,

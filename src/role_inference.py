@@ -1,4 +1,9 @@
-"""Deterministic column role inference for future agent assumptions."""
+"""Deterministic column role inference for agent assumptions.
+
+Inference is intentionally heuristic and inspectable. It suggests likely roles,
+but does not directly detect data quality issues; deterministic checks remain
+the source of truth for issue detection.
+"""
 
 from __future__ import annotations
 

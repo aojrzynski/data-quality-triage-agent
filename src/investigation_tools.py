@@ -39,6 +39,8 @@ def _sample_columns(df: pd.DataFrame, target_column: str | None, max_context_col
 
 
 def _rows_to_records(df: pd.DataFrame, columns: list[str], limit: int) -> list[dict[str, Any]]:
+    # Row samples are bounded by design so investigations stay deterministic and
+    # trace payloads remain readable.
     sample = df.loc[:, columns].head(limit).copy()
     sample.insert(0, "row_index", sample.index.astype(int))
     return sample.to_dict(orient="records")

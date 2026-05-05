@@ -1,65 +1,45 @@
-# Project Scope: Data Quality Triage Agent
+# Project Scope
 
-## What this repository is today
-This repository is currently a **deterministic local data quality triage tool** with an optional LLM explanation layer.
+## Purpose
 
-Today it can:
-- Run deterministic intake (file format awareness, tabular suitability assessment, XLSX sheet selection).
-- Run deterministic role inference to produce structured assumptions (key/date/numeric/categorical candidates with confidence/provenance).
-- Load CSV and XLSX files locally via CLI.
-- Build a dataset profile.
-- Run deterministic checks (schema surprises, missing values, duplicate keys, unexpected categories, date gaps, numeric outliers).
-- Score findings and generate JSON + Markdown outputs.
-- Optionally generate an LLM-written summary on top of deterministic findings.
+This repository is a local, CLI-based data quality triage project with two modes:
 
-## End goal
-The long-term goal is a genuine **Data Quality Triage Agent** that can:
-- Keep deterministic checks as the trusted detection foundation.
-- Add a separate agent mode for planning, orchestration, and triage reasoning.
-- Guide users through assumptions and follow-up investigation before reaching triage conclusions.
+- **deterministic mode** for stable, config-driven checks,
+- **agent mode** for rule-based orchestration of deterministic tools.
 
-## Mode definitions
+The project is intentionally educational: it favors inspectability, explicit trade-offs, and traceable behavior.
 
-### Deterministic mode (current stable baseline)
-Deterministic mode means:
-- Static, predictable check execution.
-- Config-driven rules and deterministic findings.
-- No autonomous planning loop.
-- Role assumptions are inferred and surfaced, but not yet user-confirmed/overridden.
-- Same behavior for the same input/config.
+## Current capabilities
 
-This mode is intended to remain stable and backward compatible.
+- Deterministic intake for CSV/XLSX inputs.
+- XLSX sheet selection (explicit or auto-ranked).
+- Deterministic role inference (`key`, `date`, `numeric_measure`, `categorical`).
+- Assumption tracking and optional interactive confirmation.
+- Resolved role-to-tool bindings with explicit precedence.
+- Rule-based planning and deterministic tool execution.
+- Bounded second-pass investigations.
+- Deterministic reports and agent traces.
+- Optional LLM-polished report artifact.
 
-### Agent mode (Stage 10 implementation)
-Agent mode currently means:
-- Explicit orchestration/planning steps (rule-based planner/executor).
-- Assumption tracking (inferred assumptions recorded in run state).
-- Assumption-driven role-to-tool binding resolution (CLI override -> interactive confirmation/override -> inferred -> config fallback).
-- Optional human-in-the-loop assumption confirmation (`--confirm-assumptions`) before planning/execution.
-- Explicit assumption statuses used in state/trace/report: `inferred`, `auto_accepted`, `user_confirmed`, `user_overridden`.
-- Dynamic deterministic tool invocation against resolved columns, with inspectable action history.
-- Bounded second-pass investigation actions triggered from deterministic findings.
-- Deterministic triage summary generation and markdown report artifact output.
-- Optional LLM narrative polish artifact output (`*_agent_report_llm.md`) when explicitly requested.
-- Explicit stop conditions and stop rationale capture.
-- Categorical validation only where selected columns have configured categorical rule sets; otherwise actions are explicitly skipped and traced.
-- LLM polish is strictly non-authoritative: deterministic findings/trace/report remain source of truth, and LLM failures are soft (run still completes).
-- Future work: deeper adaptive replanning and broader UX refinement.
+## Core principles
+
+- Deterministic checks are the source of truth.
+- Agent mode orchestrates; it does not replace deterministic detection.
+- LLM usage is optional and non-authoritative.
+- Outputs must be inspectable and reproducible.
+- Local-first operation is preferred.
 
 ## In scope
-- Local-first operation.
-- CLI-first UX.
-- Deterministic checks as source of truth.
-- Optional LLM usage only for planning/explanation/polish (not primary issue detection).
-- Incremental implementation toward agent mode.
+
+- CLI-first workflows.
+- Deterministic issue detection.
+- Rule-based, bounded orchestration.
+- Clear artifacts for debugging, teaching, and portfolio review.
 
 ## Out of scope
-- Replacing deterministic checks with LLM-only detection.
-- Web app implementation.
-- Database-backed architecture.
-- Framework rewrite.
-- “One-shot” full autonomous agent implementation in a single refactor.
 
-## Compatibility commitment
-A core commitment of this project is that **deterministic mode remains supported** while agent mode is introduced incrementally.
-Any future agent capabilities should layer on top of (not replace) deterministic reliability.
+- LLM-only issue detection.
+- Web application development.
+- Database-backed architecture.
+- Large framework migration.
+- Claims of open-ended autonomous intelligence.

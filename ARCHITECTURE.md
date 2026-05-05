@@ -1,108 +1,43 @@
 # Architecture
 
-## Purpose
-This document describes both:
-1. The current architecture in the repository.
-2. The target layered architecture needed to support future agent mode safely.
+## Design intent
 
-The design principle is incremental evolution: preserve deterministic reliability while adding clean boundaries for orchestration.
+The architecture keeps issue detection deterministic and isolates orchestration concerns so agent behavior stays bounded and traceable.
 
-## Current architecture (Stage 10 baseline)
+## Layered view
 
-### 1) Input and normalization layer
-- `src/io.py`: file loading/saving utilities (CSV/XLSX, JSON/Markdown output).
-- `src/intake.py`: deterministic intake (file-type awareness, suitability scoring, XLSX sheet ranking/selection).
-- `src/profiling.py`: dataset profiling and dataset naming.
-- `src/role_inference.py`: deterministic role inference and structured assumption generation.
-- `src/config.py`: deterministic check configuration loading.
+1. **Input and intake layer**
+   - `src/io.py`: dataset + artifact I/O.
+   - `src/intake.py`: suitability scoring, candidate summaries, sheet selection.
 
-### 2) Deterministic tool layer
-- `src/checks.py`: deterministic finding logic.
-- `src/scoring.py`: severity scoring/ranking.
-- `src/tools.py`: thin metadata + wrappers for deterministic checks (for future orchestration reuse).
+2. **Inference and binding layer**
+   - `src/role_inference.py`: deterministic role inference.
+   - `src/bindings.py`: resolved role bindings (override -> confirmation -> inference -> fallback).
 
-### 3) Orchestration / execution boundary
-- `src/cli.py`:
-  - explicit mode boundary via `--mode deterministic|agent`
-  - deterministic execution path remains stable
-  - agent mode runs rule-based planning/execution and optional interactive assumption confirmation (`--confirm-assumptions`)
-- `src/planner.py`: rule-based selection of deterministic tool sequence.
-- `src/bindings.py`: explicit assumption-to-tool binding resolution (CLI override/interactively confirmed override/inferred/config fallback).
-- `src/agent_runner.py`: executor loop + optional assumption confirmation + resolved bindings + status propagation + action history + bounded investigation pass + stop rationale + trace/report artifacts.
-- `src/investigation_tools.py`: deterministic follow-up investigation helpers for key finding families.
+3. **Deterministic detection layer**
+   - `src/checks.py`: check implementations.
+   - `src/tools.py`: tool wrappers and metadata for planner/executor use.
 
-### 4) Reporting and output layer
-- `src/reporting.py`: deterministic Markdown report generation.
-- `src/expected_validation.py`: expected-fixture validation logic extracted from CLI.
-- `src/triage_reporting.py`: deterministic triage summary + agent markdown report generation.
+4. **Orchestration layer (agent mode)**
+   - `src/planner.py`: rule-based planning.
+   - `src/agent_runner.py`: execution loop, assumption handling, investigations, trace.
+   - `src/investigation_tools.py`: bounded follow-up evidence collection.
 
-### 5) Optional LLM layer
-- `src/llm_summary.py`: optional summary generation using deterministic outputs.
-- Agent mode can optionally produce a separate LLM-polished narrative artifact (`*_agent_report_llm.md`) derived only from deterministic trace/report context.
-- LLM status metadata is recorded in run state/trace and never replaces deterministic evidence artifacts.
-- LLM is non-authoritative and additive.
+5. **Reporting layer**
+   - `src/reporting.py`: deterministic mode markdown report.
+   - `src/triage_reporting.py`: deterministic agent triage report.
 
-## Target architecture (incremental)
+6. **Optional LLM polish layer**
+   - `src/llm_summary.py`: optional narrative rewrite from deterministic artifacts.
 
-### Layer A: Intake + suitability (implemented foundation)
-Responsibilities:
-- detect whether input is tabular and suitable for deterministic tools
-- choose sheet/table where relevant
-- return structured candidate summaries for future agent assumptions/planning
+## Mode boundary
 
-Output:
-- validated intake context for deterministic execution today and planner/executor later
+- `src/cli.py` provides an explicit `--mode deterministic|agent` boundary.
+- Deterministic mode remains stable and config-driven.
+- Agent mode remains rule-based and bounded (no deep adaptive replanning).
 
-### Layer B: Deterministic assumptions + tools (source of truth remains tools)
-Responsibilities:
-- infer likely column roles using deterministic heuristics
-- emit inspectable assumptions with confidence/provenance
-- keep check execution config-driven in deterministic mode
+## Reliability boundaries
 
-Output:
-- assumption candidates that future confirmation/planning layers can consume
-
-### Layer C: Deterministic tools (existing source of truth)
-Responsibilities:
-- deterministic, reproducible checks
-- structured findings
-
-Output:
-- trustworthy findings that planner can inspect and reference
-
-### Layer D: Agent orchestration (in progress)
-Responsibilities:
-- rule-based planner/executor
-- resolve and record role-to-tool bindings before execution
-- track assumptions, confidence, and status transitions (`inferred`, `auto_accepted`, `user_confirmed`, `user_overridden`)
-- optionally collect per-role user confirmation/override via CLI prompt
-- choose which tools to run and when to stop
-- trigger bounded second-pass investigations from deterministic findings
-
-Output:
-- resolved bindings + action history + investigation evidence + stop rationale + triage conclusions
-
-### Layer E: Reporting (split by mode)
-Responsibilities:
-- deterministic report path remains stable
-- agent mode emits deterministic triage summary/report output separately
-
-Output:
-- deterministic report (`reporting.py`) and future triage report (`triage_reporting.py`)
-
-## LLM boundaries
-LLM may assist with:
-- explanation/polish of deterministic results
-- future planning support (non-authoritative)
-
-LLM must not become:
-- primary detector of data quality issues
-- replacement for deterministic check outputs
-
-## Relationship between loaders, tools, and future planner
-- Loaders and profiling establish standardized context.
-- Deterministic tools provide reliable signals.
-- Future planner will orchestrate tool usage and investigation using that context/signals.
-- Reporting consumes the resulting state/output objects.
-
-This keeps responsibilities clear and lets agent mode evolve safely without destabilizing deterministic runs.
+- Deterministic artifacts are canonical evidence.
+- LLM outputs are optional polish artifacts only.
+- Agent trace captures planning, action execution, investigation, and stop rationale.
