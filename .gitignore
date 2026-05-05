@@ -5,3 +5,5 @@ __pycache__/
 .env
 outputs/*.json
 outputs/*.md
+*.egg-info/
+src/*.egg-info/
