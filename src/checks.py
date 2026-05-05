@@ -7,6 +7,14 @@ import pandas as pd
 from src.models import AgentConfig, Finding
 
 
+def _parse_dates(values: pd.Series) -> pd.Series:
+    """Parse date-like values while preserving flexible mixed-format support."""
+    try:
+        return pd.to_datetime(values, errors="coerce", format="mixed")
+    except TypeError:
+        return pd.to_datetime(values, errors="coerce")
+
+
 def check_missing_values(df: pd.DataFrame) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -117,7 +125,7 @@ def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
             )
         ]
 
-    parsed = pd.to_datetime(df[column], errors="coerce")
+    parsed = _parse_dates(df[column])
 
     if parsed.dropna().empty:
         return []
