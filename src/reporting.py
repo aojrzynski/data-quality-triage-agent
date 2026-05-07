@@ -1,4 +1,9 @@
-"""Report generation logic."""
+"""Deterministic Markdown reporting for baseline runs.
+
+Reports are human-readable views over deterministic profile and finding
+artifacts. Optional LLM text can be embedded as polish, but findings/evidence
+come from deterministic checks.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,7 @@ def build_markdown_report(
     run_result: RunResult,
     llm_summary: str | None = None,
 ) -> str:
-    """Create a Markdown report for one agent run."""
+    """Create a Markdown report for one deterministic-mode run."""
     profile = run_result.profile
     severity_counts = Counter(finding.severity for finding in run_result.findings)
 

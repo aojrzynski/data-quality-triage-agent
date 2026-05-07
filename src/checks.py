@@ -1,4 +1,8 @@
-"""Data quality checks."""
+"""Deterministic data quality check primitives.
+
+These functions are intentionally simple and repeatable. They produce concrete
+evidence used by reports and traces, and they do not rely on LLM judgement.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +20,7 @@ def _parse_dates(values: pd.Series) -> pd.Series:
 
 
 def check_missing_values(df: pd.DataFrame) -> list[Finding]:
+    """Report columns containing null/missing values."""
     findings: list[Finding] = []
 
     for column in df.columns:
@@ -39,6 +44,7 @@ def check_missing_values(df: pd.DataFrame) -> list[Finding]:
 
 
 def check_duplicate_keys(df: pd.DataFrame, key_column: str) -> list[Finding]:
+    """Report duplicate values for a candidate key column."""
     if key_column not in df.columns:
         return [
             Finding(
@@ -82,6 +88,7 @@ def check_unexpected_categorical_values(
     column: str,
     allowed_values: set[str],
 ) -> list[Finding]:
+    """Report categorical values outside the configured allowed set."""
     if column not in df.columns:
         return [
             Finding(
@@ -114,6 +121,7 @@ def check_unexpected_categorical_values(
 
 
 def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
+    """Report missing calendar days between min/max observed dates."""
     if column not in df.columns:
         return [
             Finding(
@@ -156,6 +164,7 @@ def check_date_gaps(df: pd.DataFrame, column: str) -> list[Finding]:
 
 
 def check_numeric_outliers(df: pd.DataFrame, column: str) -> list[Finding]:
+    """Report IQR-based numeric outliers for one column."""
     if column not in df.columns:
         return [
             Finding(
@@ -232,6 +241,7 @@ def check_schema_surprises(df: pd.DataFrame, expected_columns: list[str]) -> lis
 
 
 def run_checks(df: pd.DataFrame, config: AgentConfig) -> list[Finding]:
+    """Run the deterministic baseline pipeline in fixed order."""
     findings: list[Finding] = []
 
     findings.extend(check_schema_surprises(df, expected_columns=config.expected_columns))

@@ -159,6 +159,7 @@ def assess_tabular_suitability(df: pd.DataFrame) -> TabularSuitabilityResult:
 
 
 def _build_candidate(candidate_id: str, df: pd.DataFrame) -> DatasetCandidateSummary:
+    """Build inspectable metrics for one candidate table or sheet."""
     suitability = assess_tabular_suitability(df)
     row_count = int(len(df))
     column_count = int(len(df.columns))
@@ -192,7 +193,11 @@ def _build_candidate(candidate_id: str, df: pd.DataFrame) -> DatasetCandidateSum
 
 
 def inspect_and_select_dataset(path: str | Path, sheet_name: str | int | None = None) -> IntakeResult:
-    """Inspect input and select the best candidate dataset for checks."""
+    """Inspect input and select the best candidate dataset for checks.
+
+    Intake is deliberately local-first (filesystem inputs only) so sheet choice
+    and suitability decisions are deterministic and easy to inspect.
+    """
     input_path = Path(path)
     suffix = input_path.suffix.lower()
 
@@ -213,6 +218,7 @@ def inspect_and_select_dataset(path: str | Path, sheet_name: str | int | None = 
             f"Unsupported file format: {suffix}. Supported formats are .csv and .xlsx"
         )
 
+    # Explicit sheet selection is preserved as-is for reproducibility.
     if sheet_name is not None:
         explicit_df = load_excel(input_path, sheet_name=sheet_name)
 
@@ -236,6 +242,8 @@ def inspect_and_select_dataset(path: str | Path, sheet_name: str | int | None = 
     if not sheet_names:
         raise ValueError(f"Workbook has no sheets: {input_path}")
 
+    # Auto mode evaluates every sheet and records ranking inputs so selection
+    # remains explainable in trace/report artifacts.
     evaluated: list[tuple[DatasetCandidateSummary, pd.DataFrame]] = []
     for sheet in sheet_names:
         sheet_df = load_excel(input_path, sheet_name=sheet)

@@ -97,7 +97,11 @@ def build_agent_llm_polish_payload(
     action_history: list[dict[str, Any]],
     assumption_review: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """Build bounded agent-mode payload for optional narrative polish."""
+    """Build bounded payload for optional agent-report narrative polish.
+
+    Payload is derived from deterministic artifacts only; no raw dataset access
+    or additional checks happen in this layer.
+    """
     return {
         "dataset_name": dataset_name,
         "intake_summary": intake_summary,
@@ -109,7 +113,7 @@ def build_agent_llm_polish_payload(
 
 
 def generate_agent_llm_polish(payload: dict[str, Any], model: str | None = None) -> str:
-    """Generate optional LLM-polished agent narrative from deterministic evidence only."""
+    """Generate optional narrative polish from deterministic evidence only."""
     return _call_openai_markdown(
         payload=payload,
         developer_instruction=(

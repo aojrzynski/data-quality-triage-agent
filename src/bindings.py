@@ -96,6 +96,7 @@ def _resolve_role_binding(
     inferred_columns: list[str],
     fallback_columns: list[str],
 ) -> RoleBinding:
+    """Resolve one role's columns with explicit precedence and provenance."""
     # Precedence is strict and inspectable:
     # user override -> inferred candidates -> config fallback.
     ignored_override = (
@@ -175,7 +176,11 @@ def resolve_agent_execution_bindings(
     numeric_override: list[str] | None = None,
     categorical_override: list[str] | None = None,
 ) -> AgentExecutionBindings:
-    """Resolve execution bindings using override -> inferred -> config fallback."""
+    """Resolve tool-facing bindings using override -> inferred -> config fallback.
+
+    The returned structure is persisted into trace/report artifacts so users can
+    inspect which columns each deterministic tool was bound to and why.
+    """
     available_columns = {str(column) for column in df.columns}
 
     return AgentExecutionBindings(

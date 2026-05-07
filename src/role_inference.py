@@ -82,6 +82,7 @@ def _safe_ratio(numerator: int | float, denominator: int | float) -> float:
 
 
 def _column_stats(series: pd.Series) -> dict[str, float]:
+    """Collect deterministic per-column signals used by role heuristics."""
     non_null = series.dropna()
     non_null_count = int(non_null.shape[0])
     total_count = int(series.shape[0])
@@ -127,7 +128,11 @@ def _candidate(
 
 
 def infer_column_roles(df: pd.DataFrame) -> RoleInferenceResult:
-    """Infer likely semantic roles for dataset columns using deterministic heuristics."""
+    """Infer likely semantic roles for columns using deterministic heuristics.
+
+    These scores are signals, not proof. Results feed assumptions and planning,
+    and uncertainty is surfaced through confidence/evidence for user review.
+    """
     key_candidates: list[ColumnRoleCandidate] = []
     date_candidates: list[ColumnRoleCandidate] = []
     numeric_candidates: list[ColumnRoleCandidate] = []
@@ -143,6 +148,7 @@ def infer_column_roles(df: pd.DataFrame) -> RoleInferenceResult:
         date_ratio = stats["parseable_date_ratio"]
         avg_len = stats["average_length"]
 
+        # Key heuristic: reward uniqueness/completeness, penalize measure/date cues.
         key_score = 0.0
         if _token_matches(column_name, _KEY_TOKENS):
             key_score += 0.35
@@ -175,6 +181,7 @@ def infer_column_roles(df: pd.DataFrame) -> RoleInferenceResult:
                 )
             )
 
+        # Date heuristic: combine parseability with date-like naming.
         date_score = 0.0
         if _token_matches(column_name, _DATE_TOKENS):
             date_score += 0.3
@@ -202,6 +209,7 @@ def infer_column_roles(df: pd.DataFrame) -> RoleInferenceResult:
                 )
             )
 
+        # Numeric heuristic: favor coercible measure-like columns.
         numeric_score = 0.0
         if _token_matches(column_name, _NUMERIC_TOKENS):
             numeric_score += 0.3
@@ -230,6 +238,7 @@ def infer_column_roles(df: pd.DataFrame) -> RoleInferenceResult:
                 )
             )
 
+        # Categorical heuristic: favor repeated lower-cardinality values.
         categorical_score = 0.0
         if _token_matches(column_name, _CATEGORICAL_TOKENS):
             categorical_score += 0.15

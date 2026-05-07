@@ -1,4 +1,8 @@
-"""Deterministic second-pass investigation helpers for agent mode."""
+"""Deterministic, bounded second-pass investigation helpers.
+
+Investigations add row-level context to existing findings. They do not replace
+the first-pass checks or introduce open-ended autonomy.
+"""
 
 from __future__ import annotations
 
@@ -31,6 +35,7 @@ class InvestigationResult:
 
 
 def _sample_columns(df: pd.DataFrame, target_column: str | None, max_context_columns: int = 2) -> list[str]:
+    """Select a small, stable set of columns for investigation row samples."""
     if target_column is None or target_column not in df.columns:
         return list(df.columns[: max_context_columns + 1])
 
@@ -47,6 +52,7 @@ def _rows_to_records(df: pd.DataFrame, columns: list[str], limit: int) -> list[d
 
 
 def investigate_duplicate_keys(df: pd.DataFrame, finding: Finding, max_rows: int = 5) -> InvestigationResult:
+    """Collect targeted context rows for duplicate-key findings."""
     column = finding.column
     if column is None or column not in df.columns:
         return InvestigationResult(
@@ -82,6 +88,7 @@ def investigate_duplicate_keys(df: pd.DataFrame, finding: Finding, max_rows: int
 
 
 def investigate_numeric_outliers(df: pd.DataFrame, finding: Finding, max_rows: int = 5) -> InvestigationResult:
+    """Collect targeted context rows for numeric-outlier findings."""
     column = finding.column
     if column is None or column not in df.columns:
         return InvestigationResult(
@@ -129,6 +136,7 @@ def investigate_unexpected_categorical_values(
     finding: Finding,
     max_rows: int = 5,
 ) -> InvestigationResult:
+    """Collect targeted context rows for unexpected categorical values."""
     column = finding.column
     if column is None or column not in df.columns:
         return InvestigationResult(
@@ -167,6 +175,7 @@ def investigate_unexpected_categorical_values(
 
 
 def investigate_missing_values(df: pd.DataFrame, finding: Finding, max_rows: int = 5) -> InvestigationResult:
+    """Collect targeted context rows for missing-values findings."""
     column = finding.column
     if column is None or column not in df.columns:
         return InvestigationResult(

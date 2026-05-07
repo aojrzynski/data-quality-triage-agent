@@ -1,4 +1,9 @@
-"""Rule-based planner for first-pass agent-mode execution."""
+"""Rule-based action planning for agent mode.
+
+The planner selects which deterministic tools should run first-pass. It uses
+resolved bindings and intake suitability; it does not inspect data with an LLM
+or generate findings on its own.
+"""
 
 from __future__ import annotations
 
@@ -59,6 +64,7 @@ def build_rule_based_plan(
         )
     ]
 
+    # Foundational checks always run first to establish broad baseline signals.
     actions: list[PlannedAction] = [
         PlannedAction(
             tool_name="schema_surprises",
