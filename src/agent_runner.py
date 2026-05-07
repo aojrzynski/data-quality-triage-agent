@@ -1,7 +1,12 @@
-"""Agent-mode rule-based planner/executor.
+"""Agent-mode orchestration over deterministic checks.
 
-This module coordinates deterministic components (intake, inference, planner,
-tools, investigations, reporting) and records an inspectable trace.
+Agent mode coordinates deterministic components in sequence: intake, role
+inference, binding resolution, rule-based planning, tool execution, bounded
+investigations, and artifact writing.
+
+Important boundary: this module coordinates *how* deterministic checks run. It
+does not let an LLM judge data quality, and it preserves inspectable states
+such as completed, skipped, blocked, and investigated actions in the trace.
 """
 
 from __future__ import annotations
@@ -158,6 +163,7 @@ def _pick_first_findings_by_type(findings: list[Finding]) -> dict[str, Finding]:
 
 
 def _plan_investigations(findings: list[Finding], max_investigations: int = 4) -> list[Finding]:
+    """Choose a bounded second-pass investigation set from scored findings."""
     by_type = _pick_first_findings_by_type(findings)
     planned: list[Finding] = []
 
@@ -272,7 +278,17 @@ def run_agent_mode(
     prompt_fn=None,
     display_fn=None,
 ) -> AgentRunResult:
-    """Run first-pass agent mode: intake -> infer roles -> plan -> execute tools."""
+    """Run agent mode and persist inspectable trace/report artifacts.
+
+    Flow:
+    1) intake and suitability gate
+    2) deterministic role inference + resolved bindings
+    3) rule-based planning of deterministic tools
+    4) bounded investigations for selected finding families
+    5) deterministic report/trace output, with optional LLM polish
+
+    Deterministic findings remain authoritative throughout the run.
+    """
     if prompt_fn is None:
         prompt_fn = input
     if display_fn is None:
@@ -287,6 +303,8 @@ def run_agent_mode(
     report_markdown_path = Path(output_dir) / f"{Path(input_path).stem}_agent_report.md"
 
     suitability = intake_result.selected_candidate.suitability
+    # Intake hard-failure is terminal. We still write artifacts explaining why
+    # no checks were executed so the stop is transparent and reproducible.
     if suitability.hard_failure:
         llm_status = {
             "requested": llm_summary,
@@ -364,6 +382,8 @@ def run_agent_mode(
     }
     review_notes: dict[str, str] = {}
 
+    # Optional interactive review keeps role assumptions explicit before
+    # planning. CLI overrides still take highest precedence.
     if confirm_assumptions:
         display_fn("Assumption confirmation (agent mode)")
         display_fn(
@@ -450,6 +470,8 @@ def run_agent_mode(
         bindings=bindings,
     )
 
+    # Plan execution is deterministic and stateful: each action is recorded
+    # with status + details so skipped/failed/completed outcomes are inspectable.
     if not plan_result.actions:
         state.stop_rationale = StopRationale(
             reason="Planner produced no executable deterministic actions.",
@@ -488,6 +510,8 @@ def run_agent_mode(
 
         findings = score_findings(findings)
 
+        # Investigations are a bounded second pass that adds context to findings
+        # without replacing first-pass deterministic evidence.
         planned_investigations = _plan_investigations(findings)
         state.context["planned_investigations"] = [
             {"finding_type": finding.finding_type, "column": finding.column}
@@ -580,6 +604,8 @@ def run_agent_mode(
     if llm_model:
         llm_status["model"] = llm_model
 
+    # LLM polish is optional and non-authoritative. Failures are captured but do
+    # not fail the deterministic run.
     if llm_summary:
         llm_payload = build_agent_llm_polish_payload(
             dataset_name=result.state.dataset_name,

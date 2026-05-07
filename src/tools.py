@@ -1,9 +1,12 @@
-"""Thin deterministic tool interface.
+"""Thin wrappers that expose deterministic checks as planner tools.
 
 Why this module exists:
 - deterministic checks are currently invoked in a fixed pipeline (`run_checks`)
 - future agent mode will need to inspect and call checks dynamically
 - this module provides lightweight metadata + wrappers without rewriting checks
+
+The agent may choose which tools to run, but each tool still delegates to
+deterministic check functions that generate the evidence.
 """
 
 from __future__ import annotations
@@ -173,7 +176,11 @@ def execute_agent_bound_tool(
     config: AgentConfig,
     bindings: AgentExecutionBindings,
 ) -> AgentToolExecutionResult:
-    """Execute one deterministic tool using resolved agent-mode bindings."""
+    """Execute one deterministic tool using resolved agent-mode bindings.
+
+    Wrappers remain intentionally thin: selection happens in planning/execution
+    orchestration, while findings come from deterministic check primitives.
+    """
     if name in {"schema_surprises", "missing_values"}:
         findings = execute_deterministic_tool(name, df, config)
         return AgentToolExecutionResult(

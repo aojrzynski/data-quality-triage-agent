@@ -116,6 +116,7 @@ def build_agent_markdown_report(
     triage: TriageConclusion,
     assumption_review: dict[str, Any] | None = None,
 ) -> str:
+    """Build the agent-mode human-readable report from inspectable artifacts."""
     lines = [
         "# Agent Triage Report",
         "",

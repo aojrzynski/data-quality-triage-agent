@@ -1,7 +1,12 @@
-"""CLI entry point for the Data Quality Triage Agent.
+"""Command-line boundary for the Data Quality Triage Agent.
 
-The CLI enforces the mode boundary: deterministic mode runs a fixed check path,
-while agent mode orchestrates deterministic tools and writes trace artifacts.
+This module is the only public entry into runtime execution. It keeps mode
+selection explicit:
+- deterministic mode runs the stable config-driven check pipeline
+- agent mode orchestrates deterministic tools, bindings, and investigations
+
+Optional LLM output is a reporting layer on top of deterministic artifacts. It
+never replaces deterministic findings as the source of truth.
 """
 
 from __future__ import annotations
@@ -87,6 +92,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def _format_role_candidates(label: str, candidates: list) -> str:
+    """Render inferred role candidates for user-facing console output."""
     if not candidates:
         return f"{label}: none"
 
@@ -98,6 +104,7 @@ def _format_role_candidates(label: str, candidates: list) -> str:
 
 
 def _format_resolved_binding(role: str, binding: dict) -> str:
+    """Render one resolved binding block for agent-mode CLI output."""
     columns = binding.get("columns", [])
     source_by_column = binding.get("source_by_column", {})
     skipped_reason = binding.get("skipped_reason")
@@ -114,6 +121,7 @@ def _format_resolved_binding(role: str, binding: dict) -> str:
 
 
 def _resolve_sheet_arg(sheet: str | None) -> str | int | None:
+    """Convert a sheet argument into ``int`` index or ``str`` name."""
     if sheet is None:
         return None
     if str(sheet).isdigit():
