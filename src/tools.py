@@ -2,7 +2,7 @@
 
 Why this module exists:
 - deterministic checks are currently invoked in a fixed pipeline (`run_checks`)
-- future agent mode will need to inspect and call checks dynamically
+- agent mode uses this module to call deterministic checks through a small, inspectable tool boundary
 - this module provides lightweight metadata + wrappers without rewriting checks
 
 The agent may choose which tools to run, but each tool still delegates to
